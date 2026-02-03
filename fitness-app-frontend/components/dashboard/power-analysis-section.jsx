@@ -1,70 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { TrendingUp, Award, Target, Zap } from 'lucide-react';
-import apiClient from '@/lib/api-client';
 
 const PowerAnalysisSection = () => {
   const [selectedStat, setSelectedStat] = useState(null);
   const [hoveredStat, setHoveredStat] = useState(null);
-  const [radarData, setRadarData] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch user stats from database
-  const fetchStats = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get('/users/profile');
-      const stats = response.data.stats || {};
-      
-      // Map database stats to radar format
-      const data = [
-        { stat: 'Strength', value: Math.min(100, stats.strength || 0), description: 'Raw power output', trend: '+5%' },
-        { stat: 'Speed', value: Math.min(100, stats.speed || 0), description: 'Movement velocity', trend: '+3%' },
-        { stat: 'Endurance', value: Math.min(100, stats.endurance || 0), description: 'Stamina capacity', trend: '+8%' },
-        { stat: 'Agility', value: Math.min(100, stats.agility || 0), description: 'Quick reflexes', trend: '+2%' },
-        { stat: 'Power', value: Math.min(100, stats.power || 0), description: 'Explosive force', trend: '+6%' },
-        { stat: 'Recovery', value: Math.min(100, stats.recovery || 0), description: 'Healing rate', trend: '+4%' },
-      ];
-      
-      setRadarData(data);
-      console.log('📊 Stats loaded:', data);
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
-      // Fallback to default data
-      setRadarData([
-        { stat: 'Strength', value: 0, description: 'Raw power output', trend: '+0%' },
-        { stat: 'Speed', value: 0, description: 'Movement velocity', trend: '+0%' },
-        { stat: 'Endurance', value: 0, description: 'Stamina capacity', trend: '+0%' },
-        { stat: 'Agility', value: 0, description: 'Quick reflexes', trend: '+0%' },
-        { stat: 'Power', value: 0, description: 'Explosive force', trend: '+0%' },
-        { stat: 'Recovery', value: 0, description: 'Healing rate', trend: '+0%' },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Sample data - replace with your actual data
+  const radarData = [
+    { stat: 'Strength', value: 85, description: 'Raw power output', trend: '+5%' },
+    { stat: 'Speed', value: 72, description: 'Movement velocity', trend: '+3%' },
+    { stat: 'Endurance', value: 90, description: 'Stamina capacity', trend: '+8%' },
+    { stat: 'Agility', value: 68, description: 'Quick reflexes', trend: '+2%' },
+    { stat: 'Power', value: 82, description: 'Explosive force', trend: '+6%' },
+    { stat: 'Recovery', value: 76, description: 'Healing rate', trend: '+4%' },
+  ];
 
-  // Initial load and listen for task completion events
-  useEffect(() => {
-    fetchStats();
-
-    // Listen for task completion events from quests-section
-    const handleTaskCompleted = () => {
-      console.log('🎯 Task completed event received, refetching stats...');
-      fetchStats();
-    };
-
-    window.addEventListener('task-completed', handleTaskCompleted);
-    
-    return () => {
-      window.removeEventListener('task-completed', handleTaskCompleted);
-    };
-  }, []);
-
-  // Calculate overall score safely (avoid NaN)
-  const overallScore = radarData.length > 0 
-    ? Math.round(radarData.reduce((acc, curr) => acc + curr.value, 0) / radarData.length)
-    : 0;
+  const overallScore = Math.round(radarData.reduce((acc, curr) => acc + curr.value, 0) / radarData.length);
   
   const getStatTier = (value) => {
     if (value >= 85) return { label: 'ELITE', color: '#10b981', glow: 'rgba(16, 185, 129, 0.3)' };
@@ -129,90 +81,89 @@ const PowerAnalysisSection = () => {
           </div>
 
           <div className="relative z-10 p-6">
-            {radarData.length > 0 && (
-              <ResponsiveContainer width="100%" height={400}>
-                <RadarChart data={radarData}>
-                  <defs>
-                    {/* Main gradient fill */}
-                    <linearGradient id="radarMainGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.6} />
-                      <stop offset="50%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.1} />
-                    </linearGradient>
+            <ResponsiveContainer width="100%" height={400}>
+              <RadarChart data={radarData}>
+                <defs>
+                  {/* Main gradient fill */}
+                  <linearGradient id="radarMainGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.6} />
+                    <stop offset="50%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.1} />
+                  </linearGradient>
+                  
+                  {/* Glow effect */}
+                  <filter id="radarGlow">
+                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                    <feMerge>
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                </defs>
+                
+                {/* Hexagonal grid */}
+                <PolarGrid 
+                  stroke="rgba(139, 92, 246, 0.25)"
+                  strokeWidth={1.5}
+                  gridType="polygon"
+                />
+                
+                {/* Stat labels */}
+                <PolarAngleAxis 
+                  dataKey="stat"
+                  tick={({ payload, x, y, textAnchor, index }) => {
+                    const stat = radarData[index];
+                    const tier = getStatTier(stat.value);
+                    const isSelected = selectedStat?.stat === stat.stat;
+                    const isHovered = hoveredStat?.stat === stat.stat;
                     
-                    {/* Glow effect */}
-                    <filter id="radarGlow">
-                      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                      <feMerge>
-                        <feMergeNode in="coloredBlur"/>
-                        <feMergeNode in="SourceGraphic"/>
-                      </feMerge>
-                    </filter>
-                  </defs>
-                  
-                  {/* Hexagonal grid */}
-                  <PolarGrid 
-                    stroke="rgba(139, 92, 246, 0.25)"
-                    strokeWidth={1.5}
-                    gridType="polygon"
-                  />
-                  
-                  {/* Stat labels */}
-                  <PolarAngleAxis 
-                    dataKey="stat"
-                    tick={({ payload, x, y, textAnchor, index }) => {
-                      const stat = radarData[index];
-                      const tier = getStatTier(stat.value);
-                      const isSelected = selectedStat?.stat === stat.stat;
-                      const isHovered = hoveredStat?.stat === stat.stat;
-                      
-                      return (
-                        <g 
-                          transform={`translate(${x},${y})`}
-                          onMouseEnter={() => setHoveredStat(stat)}
-                          onMouseLeave={() => setHoveredStat(null)}
-                          onClick={() => setSelectedStat(isSelected ? null : stat)}
-                          style={{ cursor: 'pointer' }}
+                    return (
+                      <g 
+                        transform={`translate(${x},${y})`}
+                        onMouseEnter={() => setHoveredStat(stat)}
+                        onMouseLeave={() => setHoveredStat(null)}
+                        onClick={() => setSelectedStat(isSelected ? null : stat)}
+                        style={{ cursor: 'pointer' }}
+                        className="transition-all duration-200"
+                      >
+                        {/* Background highlight on hover/select */}
+                        {(isSelected || isHovered) && (
+                          <circle
+                            cx={0}
+                            cy={0}
+                            r={35}
+                            fill={tier.glow}
+                            className="animate-pulse"
+                          />
+                        )}
+                        
+                        {/* Stat name */}
+                        <text
+                          x={0}
+                          y={-10}
+                          dy={4}
+                          textAnchor={textAnchor}
+                          fill={isSelected || isHovered ? tier.color : '#9ca3af'}
+                          fontSize={isSelected || isHovered ? "14" : "13"}
+                          fontWeight="700"
                           className="transition-all duration-200"
+                          style={{ 
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            filter: isSelected || isHovered ? `drop-shadow(0 0 8px ${tier.glow})` : 'none'
+                          }}
                         >
-                          {/* Background highlight on hover/select */}
-                          {(isSelected || isHovered) && (
-                            <circle
-                              cx={0}
-                              cy={0}
-                              r={35}
-                              fill={tier.glow}
-                              className="animate-pulse"
-                            />
-                          )}
-                          
-                          {/* Stat name */}
-                          <text
-                            x={0}
-                            y={-10}
-                            dy={4}
-                            textAnchor={textAnchor}
-                            fill={isSelected || isHovered ? tier.color : '#9ca3af'}
-                            fontSize={isSelected || isHovered ? "14" : "13"}
-                            fontWeight="700"
-                            className="transition-all duration-200"
-                            style={{ 
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.5px',
-                              filter: isSelected || isHovered ? `drop-shadow(0 0 8px ${tier.glow})` : 'none'
-                            }}
-                          >
-                            {payload.value}
-                          </text>
-                          
-                          {/* Stat value */}
-                          <text
-                            x={0}
-                            y={8}
-                            dy={4}
-                            textAnchor={textAnchor}
-                            fill={tier.color}
-                            fontSize={isSelected || isHovered ? "20" : "18"}
+                          {payload.value}
+                        </text>
+                        
+                        {/* Stat value */}
+                        <text
+                          x={0}
+                          y={8}
+                          dy={4}
+                          textAnchor={textAnchor}
+                          fill={tier.color}
+                          fontSize={isSelected || isHovered ? "20" : "18"}
                           fontWeight="900"
                           className="transition-all duration-200"
                           style={{
@@ -309,7 +260,6 @@ const PowerAnalysisSection = () => {
                 />
               </RadarChart>
             </ResponsiveContainer>
-            )}
           </div>
         </div>
 
