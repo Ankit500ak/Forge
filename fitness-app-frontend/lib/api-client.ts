@@ -67,10 +67,10 @@ export const authApi = {
     motivationLevel?: string
     walletAddress?: string
   }) =>
-    apiClient.post('/auth/register', data),
+    apiClient.post('/api/auth/register', data),
   login: (data: { email: string; password: string }) =>
-    apiClient.post('/auth/login', data),
-  logout: () => apiClient.post('/auth/logout'),
+    apiClient.post('/api/auth/login', data),
+  logout: () => apiClient.post('/api/auth/logout'),
 };
 
 // Task API endpoints
