@@ -29,9 +29,7 @@ export default function TestMLGenerator() {
   const [testResults, setTestResults] = useState([]);
   const [testRunning, setTestRunning] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    !!localStorage.getItem('token') || !!sessionStorage.getItem('token')
-  );
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Test validators
   const validateStatRewards = (stats) => {
@@ -175,10 +173,12 @@ export default function TestMLGenerator() {
     setTestRunning(false);
   };
 
-  // Check if user is authenticated
+  // Check if user is authenticated (client-side only)
   useEffect(() => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    setIsAuthenticated(!!token);
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      setIsAuthenticated(!!token);
+    }
   }, []);
 
   if (!isAuthenticated) {
