@@ -37,7 +37,7 @@ if (corsOrigins) {
     origin: [
       'http://localhost:3000',
       'http://localhost:3001',
-      'https://your-vercel-app.vercel.app'
+      'https://forge-jhsr.vercel.app' // <-- Add your deployed Vercel frontend URL here
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
