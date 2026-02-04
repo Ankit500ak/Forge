@@ -30,6 +30,7 @@ export default function TestMLGenerator() {
   const [testRunning, setTestRunning] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // Test validators
   const validateStatRewards = (stats) => {
@@ -178,9 +179,13 @@ export default function TestMLGenerator() {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       setIsAuthenticated(!!token);
+      setMounted(true);
     }
   }, []);
 
+  if (!mounted) {
+    return null;
+  }
   if (!isAuthenticated) {
     return (
       <div className="test-container">
