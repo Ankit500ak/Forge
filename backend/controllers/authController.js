@@ -56,15 +56,16 @@ export const register = async (req, res) => {
       walletAddress
     } = req.body;
 
-    console.log('Register request received:', { email, name, age, gender, fitnessLevel, walletAddress, password: password ? 'provided' : 'MISSING' });
+    console.log('Register request received:', req.body);
 
     // Validate all required fields
     if (!email || !password || !name) {
-      console.error('Validation failed - missing required fields:', { email: !!email, password: !!password, name: !!name });
+      console.error('Validation failed - missing required fields:', { email, password, name });
       return res.status(400).json({ message: 'Email, password, and name are required' });
     }
 
     if (password.length < 8) {
+      console.error('Validation failed - password too short:', password);
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
     }
 
@@ -202,9 +203,11 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
+    console.log('Login request received:', req.body);
     const { email, password } = req.body;
 
     if (!email || !password) {
+      console.error('Login validation failed - missing fields:', { email, password });
       return res.status(400).json({ message: 'Email and password required' });
     }
 
@@ -212,12 +215,14 @@ export const login = async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     const user = rows[0];
     if (!user) {
+      console.error('Login failed - user not found:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Compare password
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
+      console.error('Login failed - invalid password for:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -247,6 +252,7 @@ export const login = async (req, res) => {
     // Generate JWT token
     const token = generateToken(user.id);
 
+    console.log('Login successful for:', email);
     res.json({
       message: 'Login successful',
       token,
@@ -283,6 +289,7 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Login failed', error: error.message });
   }
 };
