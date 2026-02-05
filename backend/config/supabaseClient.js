@@ -1,7 +1,1 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = 'https://vryxqerqzepxrzjqgpqp.supabase.co'
-const supabaseKey = process.env.SUPABASE_KEY
-const supabase = createClient(supabaseUrl, supabaseKey)
-
-export default supabase
+// Supabase is no longer used. This file can be deleted.
