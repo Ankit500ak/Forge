@@ -6,72 +6,29 @@ import { checkRankUp, getNextRankInfo } from '../utils/rankMonitor.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 // Protected route - Get current user
 router.get('/me', authenticate, async (req, res) => {
   try {
+    const userId = req.userId;
+
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('id', req.userId)
+      .eq('id', userId)
       .single();
-    try {
-      const userId = req.userId;
 
-      const { data: current, error: currError } = await supabase
-        .from('user_progression')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      if (currError) {
-        return res.status(500).json({ message: 'Server error', error: currError.message });
-      }
-      if (!current) {
-        return res.status(404).json({ message: 'Progression not found' });
-      }
-
-      const { data: updated, error: updateError } = await supabase
-        .from('user_progression')
-        .update({
-          xp_today: 0,
-          stat_points: 0,
-          last_active: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .select('*')
-        .single();
-      if (updateError) {
-        return res.status(500).json({ message: 'Server error', error: updateError.message });
-      }
-
-      res.json({
-        message: 'Daily XP and stat points reset',
-        progression: updated,
-      });
-    } catch (err) {
-      res.status(500).json({ message: 'Server error', error: err.message });
+    if (error) {
+      return res.status(500).json({ message: 'Server error', error: error.message });
     }
-  });
-    if (userError) {
-      return res.status(500).json({ message: 'Server error', error: userError.message });
-    }
-    if (!userData) {
+
+    if (!data) {
       return res.status(404).json({ message: 'User not found' });
     }
-    // Flatten joined data
-    const user = {
-      id: userData.id,
-      email: userData.email,
-      name: userData.name,
-      age: userData.fitness_profiles?.age,
-      gender: userData.fitness_profiles?.gender,
-      fitness_level: userData.fitness_profiles?.fitness_level,
-      level: userData.user_progression?.level ?? 1,
-      total_xp: userData.user_progression?.total_xp ?? 0
-    };
 
     // Get user stats (6-stat system)
     const { data: statsData, error: statsError } = await supabase
@@ -79,32 +36,23 @@ router.get('/me', authenticate, async (req, res) => {
       .select('strength, speed, endurance, agility, power, recovery')
       .eq('user_id', userId)
       .single();
+
     const stats = statsData || {
       strength: 0,
       speed: 0,
       endurance: 0,
       agility: 0,
-      try {
-        const { data: leaderboard, error } = await supabase
-          .from('user_progression')
-          .select('user_id, level, total_xp, users(name)')
-          .order('total_xp', { ascending: false })
-          .order('level', { ascending: false });
-        if (error) {
-          return res.status(500).json({ message: 'Server error', error: error.message });
-        }
-        if (!leaderboard || leaderboard.length === 0) {
-          return res.status(404).json({ message: 'No users found' });
-        }
+      power: 0,
+      recovery: 0
+    };
 
-        res.json({
-          message: 'Leaderboard retrieved',
-          leaderboard,
-        });
-      } catch (err) {
-        res.status(500).json({ message: 'Server error', error: err.message });
-      }
-    });
+    res.json({
+      message: 'User profile retrieved',
+      user: data,
+      stats: {
+        strength: parseInt(stats.strength) || 0,
+        speed: parseInt(stats.speed) || 0,
+        endurance: parseInt(stats.endurance) || 0,
         agility: parseInt(stats.agility) || 0,
         power: parseInt(stats.power) || 0,
         recovery: parseInt(stats.recovery) || 0
@@ -140,6 +88,7 @@ router.put('/profile/update', authenticate, async (req, res) => {
     if (error) {
       return res.status(500).json({ message: 'Server error', error: error.message });
     }
+
     if (!data) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -164,9 +113,11 @@ router.get('/me/game', authenticate, async (req, res) => {
       .select('*')
       .eq('user_id', userId)
       .single();
-    if (progError) {
+
+    if (progError && progError.code !== 'PGRST116') { // PGRST116 = no rows returned
       return res.status(500).json({ message: 'Server error', error: progError.message });
     }
+
     const progression = progData || null;
 
     // Get stats
@@ -175,6 +126,7 @@ router.get('/me/game', authenticate, async (req, res) => {
       .select('*')
       .eq('user_id', userId)
       .single();
+
     const stats = statsData || null;
 
     // Recalculate level from total XP (prestige-aware)
@@ -182,14 +134,20 @@ router.get('/me/game', authenticate, async (req, res) => {
       const totalXp = Number(progression.total_xp || 0);
       const prestige = Number(progression.prestige || 0);
       const calculatedLevel = getLevelFromXp(totalXp, prestige);
+
       // Update level in Supabase if changed
       if (calculatedLevel !== progression.level) {
         await supabase
           .from('user_progression')
-          .update({ level: calculatedLevel, updated_at: new Date().toISOString() })
+          .update({
+            level: calculatedLevel,
+            updated_at: new Date().toISOString()
+          })
           .eq('user_id', userId);
+
         progression.level = calculatedLevel;
       }
+
       // Calculate level progress (XP towards next level)
       const levelProgress = getLevelProgress(totalXp, prestige);
       progression.next_level_percent = levelProgress.percentToNext;
@@ -198,6 +156,7 @@ router.get('/me/game', authenticate, async (req, res) => {
     // Compute rank metadata for frontend convenience
     const prog = progression;
     let rankMetadata = null;
+
     if (prog) {
       const total = Number(prog.total_xp || 0);
       const today = Number(prog.xp_today || 0);
@@ -205,7 +164,10 @@ router.get('/me/game', authenticate, async (req, res) => {
       const prestige = Number(prog.prestige || 0);
 
       const idx = RANK_THRESHOLDS.findIndex((t) => total >= t.minXp);
-      const currentThreshold = idx >= 0 ? RANK_THRESHOLDS[idx] : RANK_THRESHOLDS[RANK_THRESHOLDS.length - 1];
+      const currentThreshold = idx >= 0
+        ? RANK_THRESHOLDS[idx]
+        : RANK_THRESHOLDS[RANK_THRESHOLDS.length - 1];
+
       const nextThreshold = idx > 0 ? RANK_THRESHOLDS[idx - 1] : null;
 
       const pctToNext = nextThreshold
@@ -214,8 +176,12 @@ router.get('/me/game', authenticate, async (req, res) => {
 
       const projectedRank = getRankForXp(projected, prestige);
       const projectedIdx = RANK_THRESHOLDS.findIndex((t) => projected >= t.minXp);
-      const projectedCurrent = projectedIdx >= 0 ? RANK_THRESHOLDS[projectedIdx] : RANK_THRESHOLDS[RANK_THRESHOLDS.length - 1];
+      const projectedCurrent = projectedIdx >= 0
+        ? RANK_THRESHOLDS[projectedIdx]
+        : RANK_THRESHOLDS[RANK_THRESHOLDS.length - 1];
+
       const projectedNext = projectedIdx > 0 ? RANK_THRESHOLDS[projectedIdx - 1] : null;
+
       const projectedPctToNext = projectedNext
         ? Math.max(0, Math.min(100, Math.round(((projected - projectedCurrent.minXp) / (projectedNext.minXp - projectedCurrent.minXp)) * 100)))
         : 100;
@@ -239,6 +205,7 @@ router.get('/me/game', authenticate, async (req, res) => {
       rankMetadata,
     });
   } catch (err) {
+    console.error('[Users] Error fetching game data:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -256,9 +223,11 @@ router.post('/me/game/update', authenticate, async (req, res) => {
       .select('*')
       .eq('user_id', userId)
       .single();
+
     if (currError) {
       return res.status(500).json({ message: 'Server error', error: currError.message });
     }
+
     if (!current) {
       return res.status(404).json({ message: 'Progression not found' });
     }
@@ -279,12 +248,13 @@ router.post('/me/game/update', authenticate, async (req, res) => {
       .eq('user_id', userId)
       .select('*')
       .single();
+
     if (updateError) {
       return res.status(500).json({ message: 'Server error', error: updateError.message });
     }
 
-    res.json({ 
-      message: 'Daily XP updated (not yet applied to total)', 
+    res.json({
+      message: 'Daily XP updated (not yet applied to total)',
       progression: updated,
       xpAddedToDaily: xpGain,
       xpTodayTotal: newXpToday,
@@ -306,9 +276,11 @@ router.post('/me/game/rollover', authenticate, async (req, res) => {
       .select('*')
       .eq('user_id', userId)
       .single();
+
     if (currError) {
       return res.status(500).json({ message: 'Server error', error: currError.message });
     }
+
     if (!current) {
       return res.status(404).json({ message: 'Progression not found' });
     }
@@ -339,18 +311,22 @@ router.post('/me/game/rollover', authenticate, async (req, res) => {
       .eq('user_id', userId)
       .select('*')
       .single();
+
     if (updateError) {
       return res.status(500).json({ message: 'Server error', error: updateError.message });
     }
 
     console.log(`[Rollover] User ${userId}: xp_today ${xpToAdd} → total_xp = ${newTotal}. Level: ${current.level} → ${newLevel}`);
 
-    res.json({ 
+    res.json({
       message: 'Daily rollover complete',
       progression: updated,
       xpRolledOver: xpToAdd,
       newTotalXp: newTotal,
-      levelChange: { old: current.level, new: newLevel },
+      levelChange: {
+        old: current.level,
+        new: newLevel
+      },
       rankUp: rankUpInfo.ranked ? rankUpInfo : null,
       nextRankInfo: nextRank
     });
@@ -370,9 +346,11 @@ router.post('/me/game/sync-rank', authenticate, async (req, res) => {
       .select('*')
       .eq('user_id', userId)
       .single();
+
     if (currError) {
       return res.status(500).json({ message: 'Server error', error: currError.message });
     }
+
     if (!current) {
       return res.status(404).json({ message: 'Progression not found' });
     }
@@ -382,7 +360,11 @@ router.post('/me/game/sync-rank', authenticate, async (req, res) => {
     const computedRank = getRankForXp(total, prestige);
 
     if (current.rank === computedRank) {
-      return res.json({ message: 'Rank already in sync', synced: false, progression: current });
+      return res.json({
+        message: 'Rank already in sync',
+        synced: false,
+        progression: current
+      });
     }
 
     const { data: updated, error: updateError } = await supabase
@@ -394,11 +376,16 @@ router.post('/me/game/sync-rank', authenticate, async (req, res) => {
       .eq('user_id', userId)
       .select('*')
       .single();
+
     if (updateError) {
       return res.status(500).json({ message: 'Server error', error: updateError.message });
     }
 
-    res.json({ message: 'Rank synced', synced: true, progression: updated });
+    res.json({
+      message: 'Rank synced',
+      synced: true,
+      progression: updated
+    });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
@@ -432,6 +419,7 @@ router.put('/:id', authenticate, async (req, res) => {
     if (error) {
       return res.status(500).json({ message: 'Server error', error: error.message });
     }
+
     if (!data) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -456,9 +444,11 @@ router.get('/me/global-rank', authenticate, async (req, res) => {
       .select('user_id, level, total_xp, users(name)')
       .order('total_xp', { ascending: false })
       .order('level', { ascending: false });
+
     if (error) {
       return res.status(500).json({ message: 'Server error', error: error.message });
     }
+
     if (!allUsers || allUsers.length === 0) {
       return res.status(404).json({ message: 'No users found' });
     }
@@ -489,86 +479,62 @@ router.get('/me/global-rank', authenticate, async (req, res) => {
 });
 
 // Protected route - Get full leaderboard (paginated)
-router.post('/me/game/update', authenticate, async (req, res) => {
+router.get('/leaderboard', authenticate, async (req, res) => {
   try {
-    const userId = req.userId;
-    const xpGain = Math.max(0, Math.floor(Number(req.body.xpGain || 0)));
-    const statPointsGain = Math.max(0, Math.floor(Number(req.body.statPointsGain || 0)));
-
-    const { data: current, error: currError } = await supabase
+    const { data: leaderboard, error } = await supabase
       .from('user_progression')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-    try {
-      const userId = req.userId;
+      .select('user_id, level, total_xp, users(name)')
+      .order('total_xp', { ascending: false })
+      .order('level', { ascending: false });
 
-      const { data: current, error: currError } = await supabase
-        .from('user_progression')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      if (currError) {
-        return res.status(500).json({ message: 'Server error', error: currError.message });
-      }
-      if (!current) {
-        return res.status(404).json({ message: 'Progression not found' });
-      }
-
-      const xpToAdd = Math.floor(Number(current.xp_today || 0));
-      const currentTotalXp = Math.floor(Number(current.total_xp || 0));
-      const newTotal = currentTotalXp + xpToAdd;
-
-      const { data: updated, error: updateError } = await supabase
-        .from('user_progression')
-        .update({
-          total_xp: newTotal,
-          xp_today: 0,
-          last_active: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .select('*')
-        .single();
-      if (updateError) {
-        return res.status(500).json({ message: 'Server error', error: updateError.message });
-      }
-
-      res.json({
-        message: 'Daily XP rolled over to total',
-        progression: updated,
-        xpAdded: xpToAdd,
-        newTotalXp: newTotal,
-      });
-    } catch (err) {
-      console.error('[Users] Error during rollover:', err);
-      res.status(500).json({ message: 'Server error', error: err.message });
+    if (error) {
+      return res.status(500).json({ message: 'Server error', error: error.message });
     }
-  });
+
+    if (!leaderboard || leaderboard.length === 0) {
+      return res.status(404).json({ message: 'No users found' });
+    }
+
+    res.json({
+      message: 'Leaderboard retrieved',
+      leaderboard,
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Protected route - Manual rank-up (with validation)
 router.post('/me/rank-up', authenticate, async (req, res) => {
   try {
     const userId = req.userId;
 
-    const { rows: progRows } = await pool.query(
-      'SELECT * FROM user_progression WHERE user_id = $1',
-      [userId]
-    );
-    const progression = progRows[0];
+    const { data: progression, error: progError } = await supabase
+      .from('user_progression')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (progError) {
+      return res.status(500).json({ message: 'Server error', error: progError.message });
+    }
 
     if (!progression) {
       return res.status(404).json({ message: 'Progression not found' });
     }
 
-    const { rows: statRows } = await pool.query(
-      'SELECT * FROM user_stats WHERE user_id = $1',
-      [userId]
-    );
-    const stats = statRows[0] || {};
+    const { data: stats, error: statsError } = await supabase
+      .from('user_stats')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    const statsObj = stats || {};
 
     // Get current rank from XP
-    const currentRank = getRankForXp(progression.total_xp || 0);
+    const currentRank = getRankForXp(progression.total_xp || 0, progression.prestige || 0);
     const currentLevel = progression.level || 1;
-    
+
     // Rank order
     const RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'A+', 'S', 'S+', 'SS+'];
     const currentRankIndex = RANK_ORDER.indexOf(currentRank);
@@ -616,148 +582,67 @@ router.post('/me/rank-up', authenticate, async (req, res) => {
 
     // Check stat requirements (all stats must meet minimum)
     const statReqs = {
-      F: 10, E: 20, D: 35, C: 30, B: 50, A: 70, 'A+': 85, S: 100
+      F: 10,
+      E: 20,
+      D: 35,
+      C: 30,
+      B: 50,
+      A: 70,
+      'A+': 85,
+      S: 100
     };
+
     const minStatRequired = statReqs[currentRank] || 0;
-    const allStatsMinMet = Object.values(stats).every(v => (parseInt(v) || 0) >= minStatRequired);
-      const { data: progression, error: progError } = await supabase
-        .from('user_progression')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      if (progError) {
-        return res.status(500).json({ message: 'Server error', error: progError.message });
-      }
-      if (!progression) {
-        return res.status(404).json({ message: 'Progression not found' });
-      }
+    const allStatsMinMet = Object.values(statsObj).every(v => (parseInt(v) || 0) >= minStatRequired);
 
-      const { data: stats, error: statsError } = await supabase
-        .from('user_stats')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      const statsObj = stats || {};
-
-      // Get current rank from XP
-      const currentRank = getRankForXp(progression.total_xp || 0);
-      const currentLevel = progression.level || 1;
-    
-      // Rank order
-      const RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'A+', 'S', 'S+', 'SS+'];
-      const currentRankIndex = RANK_ORDER.indexOf(currentRank);
-      const nextRank = RANK_ORDER[currentRankIndex + 1];
-
-      // CAP: Players can only reach S rank at level 100
-      if (currentRank === 'S' && currentLevel >= 100) {
-        return res.status(400).json({
-          message: 'Maximum rank reached at level 100. Further progression determined by global ranking.',
-          currentRank: 'S',
-          status: 'CAPPED_AT_S_RANK',
-          requiresGlobalRanking: true
-        });
-      }
-
-      if (!nextRank) {
-        return res.status(400).json({ message: 'Already at maximum rank' });
-      }
-
-      // Rank-up requirements (all XP values are incremental within this rank, not cumulative)
-      const RANK_UP_REQUIREMENTS = {
-        F: { xpRequired: 40000, tasksRequired: 10, streakRequired: 5 },
-        E: { xpRequired: 160000, tasksRequired: 30, streakRequired: 14 },
-        D: { xpRequired: 400000, tasksRequired: 75, streakRequired: 30 },
-        C: { xpRequired: 600000, tasksRequired: 150, streakRequired: 60 },
-        B: { xpRequired: 1200000, tasksRequired: 300, streakRequired: 90 },
-        A: { xpRequired: 1800000, tasksRequired: 500, streakRequired: 120 },
-        'A+': { xpRequired: 3600000, tasksRequired: 750, streakRequired: 150 },
-        S: { xpRequired: 12000000, tasksRequired: 1000, streakRequired: 180 },
-      };
-
-      const requirements = RANK_UP_REQUIREMENTS[currentRank];
-      if (!requirements) {
-        return res.status(400).json({ message: 'Unknown rank' });
-      }
-
-      // Check if requirements are met
-      const xpProgress = progression.total_xp % requirements.xpRequired;
-      const tasksCompleted = progression.tasks_completed || 0;
-      const currentStreak = progression.current_streak || 0;
-
-      const meetsXpRequirement = xpProgress >= requirements.xpRequired;
-      const meetsTaskRequirement = tasksCompleted >= requirements.tasksRequired;
-      const meetsStreakRequirement = currentStreak >= requirements.streakRequired;
-
-      // Check stat requirements (all stats must meet minimum)
-      const statReqs = {
-        F: 10, E: 20, D: 35, C: 30, B: 50, A: 70, 'A+': 85, S: 100
-      };
-      const minStatRequired = statReqs[currentRank] || 0;
-      const allStatsMinMet = Object.values(statsObj).every(v => (parseInt(v) || 0) >= minStatRequired);
-
-      if (!meetsXpRequirement || !meetsTaskRequirement || !meetsStreakRequirement || !allStatsMinMet) {
-        return res.status(400).json({
-          message: 'Rank-up requirements not met',
-          requirements: {
-            xp: { required: requirements.xpRequired, current: xpProgress, met: meetsXpRequirement },
-            tasks: { required: requirements.tasksRequired, current: tasksCompleted, met: meetsTaskRequirement },
-            streak: { required: requirements.streakRequired, current: currentStreak, met: meetsStreakRequirement },
-            stats: { required: minStatRequired, met: allStatsMinMet },
-          }
-        });
-      }
-
-      // Update rank in progression
-      const { data: updated, error: updateError } = await supabase
-        .from('user_progression')
-        .update({ rank: nextRank })
-        .eq('user_id', userId)
-        .select('*')
-        .single();
-      if (updateError) {
-        return res.status(500).json({ message: 'Server error', error: updateError.message });
-      }
-
-          const { data: updated, error: updateError } = await supabase
-            .from('user_progression')
-            .update({ rank: nextRank })
-            .eq('user_id', userId)
-            .select('*')
-            .single();
-          if (updateError) {
-            return res.status(500).json({ message: 'Server error', error: updateError.message });
-          }
-      const allStatsMinMet = Object.values(statsObj).every(v => (parseInt(v) || 0) >= minStatRequired);
-
-      if (!meetsXpRequirement || !meetsTaskRequirement || !meetsStreakRequirement || !allStatsMinMet) {
-        return res.status(400).json({
-          message: 'Rank-up requirements not met',
-          requirements: {
-            xp: { required: requirements.xpRequired, current: xpProgress, met: meetsXpRequirement },
-            tasks: { required: requirements.tasksRequired, current: tasksCompleted, met: meetsTaskRequirement },
-            streak: { required: requirements.streakRequired, current: currentStreak, met: meetsStreakRequirement },
-            stats: { required: minStatRequired, met: allStatsMinMet },
-          }
-        });
-      }
-
-      // Update rank in progression
-      const { data: updated, error: updateError } = await supabase
-        .from('user_progression')
-        .update({ rank: nextRank })
-        .eq('user_id', userId)
-        .select('*')
-        .single();
-      if (updateError) {
-        return res.status(500).json({ message: 'Server error', error: updateError.message });
-      }
-
-      res.json({
-        message: 'Rank-up successful',
-        newRank: nextRank,
-        progression: updated,
+    if (!meetsXpRequirement || !meetsTaskRequirement || !meetsStreakRequirement || !allStatsMinMet) {
+      return res.status(400).json({
+        message: 'Rank-up requirements not met',
+        requirements: {
+          xp: {
+            required: requirements.xpRequired,
+            current: xpProgress,
+            met: meetsXpRequirement
+          },
+          tasks: {
+            required: requirements.tasksRequired,
+            current: tasksCompleted,
+            met: meetsTaskRequirement
+          },
+          streak: {
+            required: requirements.streakRequired,
+            current: currentStreak,
+            met: meetsStreakRequirement
+          },
+          stats: {
+            required: minStatRequired,
+            met: allStatsMinMet
+          },
+        }
       });
-    } catch (err) {
-      res.status(500).json({ message: 'Server error', error: err.message });
     }
-  });
+
+    // Update rank in progression
+    const { data: updated, error: updateError } = await supabase
+      .from('user_progression')
+      .update({ rank: nextRank })
+      .eq('user_id', userId)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      return res.status(500).json({ message: 'Server error', error: updateError.message });
+    }
+
+    res.json({
+      message: 'Rank-up successful',
+      newRank: nextRank,
+      progression: updated,
+    });
+  } catch (err) {
+    console.error('[Rank-up] Error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+export default router;
