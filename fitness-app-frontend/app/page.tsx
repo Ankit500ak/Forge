@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from 'react'
@@ -60,16 +59,95 @@ export default function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
     if (!email || !password) {
       setError('Please enter your email and password')
       return
     }
+
     try {
       setError('')
-      await login(email, password)
+      
+      // Call login from auth context
+      const response = await login(email, password)
+      
+      console.log('[SignIn] Login response:', response)
+
+      // Check if profile is incomplete or requires registration
+      if (response?.requiresRegistration || response?.error === 'UserNotFound' || response?.error === 'ProfileNotFound' || response?.error === 'IncompleteProfile') {
+        console.log('[SignIn] Profile incomplete, redirecting to signup')
+        setError('Your profile is incomplete. Redirecting to complete registration...')
+        
+        // Clear any stored token
+        localStorage.removeItem('token')
+        
+        // Redirect to signup after a short delay
+        setTimeout(() => {
+          router.push('/signup')
+        }, 1500)
+        return
+      }
+
+      // Check if profile is complete but missing some data
+      if (response?.profileComplete === false && !response?.requiresRegistration) {
+        console.log('[SignIn] Profile incomplete but not critical, redirecting to complete profile')
+        setError('Setting up your profile...')
+        
+        setTimeout(() => {
+          router.push('/complete-profile')
+        }, 1000)
+        return
+      }
+
+      // Successful login
+      console.log('[SignIn] Login successful, redirecting to dashboard')
       router.push('/dashboard')
-    } catch (err) {
-      setError(authError || 'Invalid email or password')
+      
+    } catch (err: any) {
+      console.error('[SignIn] Login error:', err)
+      
+      // Handle specific error cases
+      if (err?.response?.data?.requiresRegistration || 
+          err?.response?.data?.error === 'UserNotFound' || 
+          err?.response?.data?.error === 'ProfileNotFound' ||
+          err?.response?.data?.error === 'IncompleteProfile') {
+        
+        setError('Your profile is incomplete. Redirecting to registration...')
+        
+        // Clear any stored token
+        localStorage.removeItem('token')
+        
+        setTimeout(() => {
+          router.push('/signup')
+        }, 1500)
+        return
+      }
+
+      // Handle account inactive
+      if (err?.response?.data?.error === 'AccountInactive') {
+        setError('Your account has been deactivated. Please contact support.')
+        return
+      }
+
+      // Handle invalid credentials
+      if (err?.response?.data?.error === 'InvalidCredentials') {
+        setError('Invalid email or password. Please try again.')
+        return
+      }
+
+      // Handle email not confirmed
+      if (err?.response?.data?.error === 'EmailNotConfirmed') {
+        setError('Please verify your email before logging in. Check your inbox.')
+        return
+      }
+
+      // Generic error
+      setError(
+        err?.response?.data?.message || 
+        authError || 
+        err?.message || 
+        'Invalid email or password. Please try again.'
+      )
     }
   }
 
@@ -185,6 +263,7 @@ export default function SignInPage() {
                       className="w-full bg-black/40 border border-purple-500/20 rounded-2xl py-4 px-12 text-white placeholder-purple-300/30 outline-none focus:border-purple-500/60 focus:bg-black/60 transition-all duration-300"
                       style={{ backdropFilter: 'blur(10px)' }}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -208,11 +287,13 @@ export default function SignInPage() {
                       className="w-full bg-black/40 border border-purple-500/20 rounded-2xl py-4 px-12 pr-12 text-white placeholder-purple-300/30 outline-none focus:border-purple-500/60 focus:bg-black/60 transition-all duration-300"
                       style={{ backdropFilter: 'blur(10px)' }}
                       required
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-400/60 hover:text-purple-300 transition-colors duration-300 p-1"
+                      disabled={isLoading}
                     >
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
@@ -229,6 +310,7 @@ export default function SignInPage() {
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
                       className="peer sr-only"
+                      disabled={isLoading}
                     />
                     <div className="w-5 h-5 rounded-md border border-purple-500/30 bg-black/40 peer-checked:bg-gradient-to-br peer-checked:from-purple-600 peer-checked:via-violet-600 peer-checked:to-blue-600 peer-checked:border-purple-400/50 transition-all duration-300" 
                          style={{ backdropFilter: 'blur(10px)' }} />
@@ -304,6 +386,7 @@ export default function SignInPage() {
                     background: 'rgba(0, 0, 0, 0.4)',
                     backdropFilter: 'blur(10px)'
                   }}
+                  disabled={isLoading}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="relative flex items-center justify-center gap-2.5 text-purple-200 group-hover:text-white transition-colors duration-300">
@@ -324,6 +407,7 @@ export default function SignInPage() {
                     background: 'rgba(0, 0, 0, 0.4)',
                     backdropFilter: 'blur(10px)'
                   }}
+                  disabled={isLoading}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="relative flex items-center justify-center gap-2.5 text-purple-200 group-hover:text-white transition-colors duration-300">
