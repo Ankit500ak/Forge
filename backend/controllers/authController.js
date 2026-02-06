@@ -769,12 +769,30 @@ export const login = async (req, res) => {
     console.log('[Login] ✅ Supabase authentication successful:', data.user.id);
 
     // Fetch user profile from database
-    console.log('[Login] Fetching user profile...');
-    const { data: userProfile, error: profileError } = await supabase
+    console.log('[Login] Fetching user profile by auth ID:', data.user.id);
+    let { data: userProfile, error: profileError } = await supabase
       .from('users')
       .select('id, email, name, age, gender, fitness_level, role, is_active, level, total_xp')
       .eq('id', data.user.id)
       .maybeSingle();
+
+    // Fallback: if user not found by ID, try by email
+    if (!userProfile && data.user.email) {
+      console.log('[Login] ⚠️ User not found by ID, trying by email:', data.user.email);
+      const { data: emailProfile, error: emailError } = await supabase
+        .from('users')
+        .select('id, email, name, age, gender, fitness_level, role, is_active, level, total_xp')
+        .eq('email', data.user.email.toLowerCase())
+        .maybeSingle();
+      
+      if (emailProfile) {
+        console.log('[Login] ✅ User found by email, updating auth reference...');
+        userProfile = emailProfile;
+        profileError = null;
+      } else {
+        profileError = emailError;
+      }
+    }
 
     if (profileError) {
       console.error('[Login] ❌ Error fetching user profile:', profileError.message);
@@ -785,7 +803,7 @@ export const login = async (req, res) => {
     }
 
     if (!userProfile) {
-      console.error('[Login] ❌ User profile not found for:', data.user.id);
+      console.error('[Login] ❌ User profile not found for:', data.user.id, 'or email:', data.user.email);
       return res.status(401).json({ 
         message: 'User profile not found. Please complete registration.',
         error: 'ProfileNotFound',
