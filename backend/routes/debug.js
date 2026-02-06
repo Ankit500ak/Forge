@@ -39,6 +39,7 @@ router.get('/rls-status', async (req, res) => {
           status: 'ERROR',
           code: error.code,
           message: error.message,
+          fullError: JSON.stringify(error),
           rls_enabled: error.code === '42501' ? 'YES - RLS IS BLOCKING ACCESS' : 'UNKNOWN'
         };
         
@@ -57,10 +58,11 @@ router.get('/rls-status', async (req, res) => {
         };
       }
     } catch (err) {
-      console.error(`[Debug] Exception on ${table}:`, err.message);
+      console.error(`[Debug] Exception on ${table}:`, err);
       results.tables[table] = {
         status: 'EXCEPTION',
-        message: err.message
+        message: err.message,
+        fullError: err.toString()
       };
     }
   }

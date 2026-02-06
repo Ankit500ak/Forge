@@ -835,6 +835,18 @@ export const login = async (req, res) => {
 
     console.log('[Login] ✅ User profile validated');
 
+    // Initialize user records if they don't exist
+    console.log('[Login] Initializing user records...');
+    const initResults = await initializeUserRecords(userProfile.id, {
+      fitnessLevel: userProfile.fitness_level || 'beginner'
+    });
+    
+    if (initResults.errors.length > 0) {
+      console.warn('[Login] ⚠️ Some records failed to initialize:', initResults.errors);
+    } else {
+      console.log('[Login] ✅ User records initialized');
+    }
+
     // Generate custom JWT token using DATABASE user ID (not auth ID)
     // This is critical - the token must contain the user ID from the database, not from Supabase Auth
     const token = generateToken(userProfile.id);
