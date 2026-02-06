@@ -212,12 +212,19 @@ export const getTodayTasks = async (req, res) => {
             console.warn('[getTodayTasks] Continuing without auto-generated tasks');
             // This is okay - user will just have empty task list
           } else {
+            console.error('[getTodayTasks] PostgreSQL Error Details:');
+            console.error('  Code:', postgresErr.code);
+            console.error('  Message:', postgresErr.message);
+            console.error('  Detail:', postgresErr.detail);
+            console.error('  Hint:', postgresErr.hint);
+            console.error('  Full error:', postgresErr);
             throw postgresErr;
           }
         }
       } catch (genErr) {
         console.error(`[getTodayTasks] ❌ Error auto-generating tasks:`, genErr.message);
         console.error('[getTodayTasks] Stack trace:', genErr.stack);
+        console.error('[getTodayTasks] Full error object:', genErr);
         // Don't block if generation fails - user will get empty list
       }
     }

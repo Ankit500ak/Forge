@@ -228,6 +228,9 @@ export async function generateSimpleTasks(userId, fitnessLevel = 'beginner', cou
     return generatedTasks;
   } catch (error) {
     console.error('[SimpleGen] ❌ Error generating tasks:', error.message);
+    console.error('[SimpleGen] Full error:', error);
+    console.error('[SimpleGen] Error code:', error.code);
+    console.error('[SimpleGen] Error details:', error.detail || error.hint || 'No details');
     throw error;
   }
 }
@@ -252,6 +255,8 @@ export async function generateSimpleTaskForUser(userId) {
     return tasks[0];
   } catch (error) {
     console.error('[SimpleGen] Error:', error.message);
+    console.error('[SimpleGen] Full error:', error);
+    console.error('[SimpleGen] Error code:', error.code);
     throw error;
   }
 }
