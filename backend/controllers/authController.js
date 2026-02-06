@@ -776,6 +776,8 @@ export const login = async (req, res) => {
       .eq('id', data.user.id)
       .maybeSingle();
 
+    console.log('[Login] Query result - userProfile:', userProfile ? 'FOUND' : 'NOT_FOUND', 'profileError:', profileError);
+
     // Fallback: if user not found by ID, try by email
     if (!userProfile && data.user.email) {
       console.log('[Login] ⚠️ User not found by ID, trying by email:', data.user.email);
@@ -785,8 +787,10 @@ export const login = async (req, res) => {
         .eq('email', data.user.email.toLowerCase())
         .maybeSingle();
       
+      console.log('[Login] Email lookup result - emailProfile:', emailProfile ? 'FOUND' : 'NOT_FOUND', 'emailError:', emailError);
+      
       if (emailProfile) {
-        console.log('[Login] ✅ User found by email, updating auth reference...');
+        console.log('[Login] ✅ User found by email, using profile from database...');
         userProfile = emailProfile;
         profileError = null;
       } else {
@@ -803,13 +807,15 @@ export const login = async (req, res) => {
     }
 
     if (!userProfile) {
-      console.error('[Login] ❌ User profile not found for:', data.user.id, 'or email:', data.user.email);
+      console.error('[Login] ❌ User profile not found for auth ID:', data.user.id, 'or email:', data.user.email);
       return res.status(401).json({ 
         message: 'User profile not found. Please complete registration.',
         error: 'ProfileNotFound',
         requiresRegistration: true
       });
     }
+
+    console.log('[Login] ✅ User profile found:', userProfile.id, userProfile.email);
 
     // Check if account is active
     if (userProfile.is_active === false) {
