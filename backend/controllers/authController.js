@@ -78,6 +78,10 @@ export const register = async (req, res) => {
         name
       });
       if (dbError) {
+        if (dbError.code === '23505' || (dbError.message && dbError.message.includes('duplicate key value'))) {
+          console.error('Email already registered:', email);
+          return res.status(400).json({ message: 'Email already registered. Please login or use a different email.' });
+        }
         console.error('User DB insert error:', dbError);
         return res.status(500).json({ message: 'Failed to create user profile', error: dbError.message });
       }
@@ -257,6 +261,9 @@ export const login = async (req, res) => {
     // Generate JWT token
     const token = generateToken(user.id);
 
+    // Null safety for fitness profile
+    const safeFitness = fitness || {};
+
     console.log('Login successful for:', email);
     res.json({
       message: 'Login successful',
@@ -266,31 +273,31 @@ export const login = async (req, res) => {
         email: user.email,
         name: user.name,
         // Step 2
-        age: fitness.age,
-        gender: fitness.gender,
-        height: fitness.height,
-        weight: fitness.weight,
-        targetWeight: fitness.target_weight,
+        age: safeFitness.age,
+        gender: safeFitness.gender,
+        height: safeFitness.height,
+        weight: safeFitness.weight,
+        targetWeight: safeFitness.target_weight,
         // Step 3
-        fitnessLevel: fitness.fitness_level,
-        goals: fitness.goals,
-        activityLevel: fitness.activity_level,
-        preferredWorkouts: fitness.preferred_workouts,
-        workoutFrequency: fitness.workout_frequency,
-        workoutDuration: fitness.workout_duration,
+        fitnessLevel: safeFitness.fitness_level,
+        goals: safeFitness.goals,
+        activityLevel: safeFitness.activity_level,
+        preferredWorkouts: safeFitness.preferred_workouts,
+        workoutFrequency: safeFitness.workout_frequency,
+        workoutDuration: safeFitness.workout_duration,
         // Step 4
-        medicalConditions: fitness.medical_conditions,
-        injuries: fitness.injuries,
-        dietaryPreferences: fitness.dietary_preferences,
-        sleepHours: fitness.sleep_hours,
-        stressLevel: fitness.stress_level,
-        smokingStatus: fitness.smoking_status,
+        medicalConditions: safeFitness.medical_conditions,
+        injuries: safeFitness.injuries,
+        dietaryPreferences: safeFitness.dietary_preferences,
+        sleepHours: safeFitness.sleep_hours,
+        stressLevel: safeFitness.stress_level,
+        smokingStatus: safeFitness.smoking_status,
         // Step 5
-        preferredWorkoutTime: fitness.preferred_workout_time,
-        gymAccess: fitness.gym_access,
-        equipment: fitness.equipment,
-        motivationLevel: fitness.motivation_level,
-        walletAddress: fitness.wallet_address,
+        preferredWorkoutTime: safeFitness.preferred_workout_time,
+        gymAccess: safeFitness.gym_access,
+        equipment: safeFitness.equipment,
+        motivationLevel: safeFitness.motivation_level,
+        walletAddress: safeFitness.wallet_address,
       },
     });
   } catch (error) {
