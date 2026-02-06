@@ -1,17 +1,9 @@
-import { Pool } from 'pg';
+import { createClient } from '@supabase/supabase-js';
 import { checkLevelUp, getLevelFromXp } from '../utils/level.js';
 import { generateAndStoreTask, getRecentTasks } from '../mlTaskGenerator.js';
 import { generateSimpleTasks, generateSimpleTaskForUser } from '../simpleTaskGenerator.js';
 
-// Parse connection string to avoid system environment variable interference
-const parseConnectionString = () => {
-  if (!process.env.POSTGRES_URL) {
-    throw new Error('POSTGRES_URL environment variable is required.');
-  }
-  return { connectionString: process.env.POSTGRES_URL, connectionTimeoutMillis: 5000 };
-};
-
-const pool = new Pool(parseConnectionString());
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 // Generate task using ML model
 export const generateMLTaskForUser = async (req, res) => {

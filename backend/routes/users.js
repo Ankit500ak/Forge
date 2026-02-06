@@ -1,5 +1,5 @@
 import express from 'express';
-import { Pool } from 'pg';
+import { createClient } from '@supabase/supabase-js';
 import { getRankForXp, RANK_THRESHOLDS } from '../utils/rank.js';
 import { getLevelFromXp, getLevelProgress } from '../utils/level.js';
 import { checkRankUp, getNextRankInfo } from '../utils/rankMonitor.js';
@@ -7,15 +7,7 @@ import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Parse connection string to avoid system environment variable interference
-const parseConnectionString = () => {
-  if (!process.env.POSTGRES_URL) {
-    throw new Error('POSTGRES_URL environment variable is required.');
-  }
-  return { connectionString: process.env.POSTGRES_URL, connectionTimeoutMillis: 5000 };
-};
-
-const pool = new Pool(parseConnectionString());
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 // Protected route - Get current user
 router.get('/me', authenticate, async (req, res) => {
