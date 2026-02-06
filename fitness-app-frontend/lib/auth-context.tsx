@@ -385,13 +385,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       handleLogout()
-      router.push('/signin')
+      router.push('/')
       
       console.log('[Auth Context] Logout successful')
     } catch (err) {
       console.error('[Auth Context] Logout error:', err)
       handleLogout()
-      router.push('/signin')
+      router.push('/')
     } finally {
       setIsLoading(false)
     }
