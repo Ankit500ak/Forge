@@ -11,8 +11,10 @@ import { Pool } from 'pg';
 
 dotenv.config();
 
-console.log('Environment loaded. NODE_ENV:', process.env.NODE_ENV);
-console.log('POSTGRES_URL:', process.env.POSTGRES_URL ? process.env.POSTGRES_URL.replace(/:.*@/, ':****@') : 'NOT SET');
+console.log('═════════════════════════════════════════════════════════════════════════════');
+console.log('🚀 Environment loaded. NODE_ENV:', process.env.NODE_ENV);
+console.log('🔗 POSTGRES_URL:', process.env.POSTGRES_URL ? process.env.POSTGRES_URL.replace(/:.*@/, ':****@') : 'NOT SET');
+console.log('═════════════════════════════════════════════════════════════════════════════');
 
 const app = express();
 
@@ -20,6 +22,13 @@ const app = express();
 const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
 });
+pool.connect()
+  .then(() => {
+    console.log('✅ Connected to PostgreSQL database!');
+  })
+  .catch((err) => {
+    console.error('❌ Failed to connect to PostgreSQL:', err.message);
+  });
 
 // Initialize XP rollover service
 initXpRolloverService(pool);
@@ -44,19 +53,31 @@ if (corsOrigins) {
     allowedHeaders: ['Content-Type', 'Authorization']
   }));
 }
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Route logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`➡️  [${req.method}] ${req.originalUrl} - ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
+
+// Health check (place BEFORE other /api routes)
+app.get('/api/health', (req, res) => {
+  console.log('✅ /api/health checked');
+  res.json({ status: 'Backend server is running' });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ranks', ranksRoutes);
 app.use('/api/tasks', taskRoutes);
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'Backend server is running' });
-});
 
 // Manual XP rollover trigger (for testing/admin)
 app.post('/api/admin/rollover', async (req, res) => {
@@ -112,5 +133,7 @@ const PORT = process.env.PORT || 5000;
 // Bind to 0.0.0.0 so the server is reachable from other machines on the LAN
 const HOST = process.env.HOST || '0.0.0.0';
 app.listen(PORT, HOST, () => {
-  console.log(`Server running on http://${HOST}:${PORT}`);
+  console.log('═════════════════════════════════════════════════════════════════════════════');
+  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
+  console.log('═════════════════════════════════════════════════════════════════════════════');
 });

@@ -1,26 +1,9 @@
-import { Pool } from 'pg';
+import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
 import { generateToken } from '../middleware/auth.js';
 import { generateAndStoreTask } from '../mlTaskGenerator.js';
 
-// Parse connection string to avoid system environment variable interference
-const parseConnectionString = () => {
-  const url = process.env.POSTGRES_URL || 'postgresql://postgres:postgres@localhost:5432/fitnessdb';
-  const match = url.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
-  if (match) {
-    return {
-      user: match[1],
-      password: match[2],
-      host: match[3],
-      port: parseInt(match[4]),
-      database: match[5],
-      connectionTimeoutMillis: 5000
-    };
-  }
-  return { connectionString: url, connectionTimeoutMillis: 5000 };
-};
-
-const pool = new Pool(parseConnectionString());
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 export const register = async (req, res) => {
   try {
@@ -72,59 +55,70 @@ export const register = async (req, res) => {
     // Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
-    // Insert user
+    // Insert user using Supabase Auth and DB
     let userId;
     try {
-      const userResult = await pool.query(
-        'INSERT INTO users (email, name, password_hash, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id, email, name',
-        [email, name, password_hash]
-      );
-      userId = userResult.rows[0].id;
+      // Register user with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password
+      });
+      if (authError) {
+        if (authError.message && authError.message.includes('already registered')) {
+          console.error('Email already registered:', email);
+          return res.status(400).json({ message: 'Email already registered. Please login or use a different email.' });
+        }
+        console.error('User creation error:', authError);
+        return res.status(500).json({ message: 'Failed to create user profile', error: authError.message });
+      }
+      userId = authData.user.id;
+      // Insert user profile into users table
+      const { error: dbError } = await supabase.from('users').insert({
+        id: userId,
+        email,
+        name
+      });
+      if (dbError) {
+        console.error('User DB insert error:', dbError);
+        return res.status(500).json({ message: 'Failed to create user profile', error: dbError.message });
+      }
       console.log('User created:', { userId, email, name });
     } catch (err) {
-      if (err.code === '23505') {
-        console.error('Email already registered:', email);
-        return res.status(400).json({ message: 'Email already registered. Please login or use a different email.' });
-      }
       console.error('User creation error:', err);
       return res.status(500).json({ message: 'Failed to create user profile', error: err.message });
     }
 
     // Insert fitness profile with all fields
     try {
-      await pool.query(
-        `INSERT INTO fitness_profiles 
-          (user_id, age, gender, height, weight, target_weight, fitness_level, goals, activity_level, 
-           preferred_workouts, workout_frequency, workout_duration, medical_conditions, injuries, 
-           dietary_preferences, sleep_hours, stress_level, smoking_status, preferred_workout_time, 
-           gym_access, equipment, motivation_level, wallet_address, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW())`,
-        [
-          userId,
-          age ? parseInt(age) : null,
-          gender || null,
-          height ? parseFloat(height) : null,
-          weight ? parseFloat(weight) : null,
-          targetWeight ? parseFloat(targetWeight) : null,
-          fitnessLevel || null,
-          goals ? (Array.isArray(goals) ? goals : [goals]) : null,
-          activityLevel || null,
-          preferredWorkouts ? (Array.isArray(preferredWorkouts) ? preferredWorkouts : [preferredWorkouts]) : null,
-          workoutFrequency || null,
-          workoutDuration || null,
-          medicalConditions ? (Array.isArray(medicalConditions) ? medicalConditions : [medicalConditions]) : null,
-          injuries || null,
-          dietaryPreferences ? (Array.isArray(dietaryPreferences) ? dietaryPreferences : [dietaryPreferences]) : null,
-          sleepHours || null,
-          stressLevel || null,
-          smokingStatus || null,
-          preferredWorkoutTime || null,
-          gymAccess || null,
-          equipment ? (Array.isArray(equipment) ? equipment : [equipment]) : null,
-          motivationLevel || null,
-          walletAddress || null,
-        ]
-      );
+      const { error: profileError } = await supabase.from('fitness_profiles').insert({
+        user_id: userId,
+        age: age ? parseInt(age) : null,
+        gender: gender || null,
+        height: height ? parseFloat(height) : null,
+        weight: weight ? parseFloat(weight) : null,
+        target_weight: targetWeight ? parseFloat(targetWeight) : null,
+        fitness_level: fitnessLevel || null,
+        goals: goals ? (Array.isArray(goals) ? goals : [goals]) : null,
+        activity_level: activityLevel || null,
+        preferred_workouts: preferredWorkouts ? (Array.isArray(preferredWorkouts) ? preferredWorkouts : [preferredWorkouts]) : null,
+        workout_frequency: workoutFrequency || null,
+        workout_duration: workoutDuration || null,
+        medical_conditions: medicalConditions ? (Array.isArray(medicalConditions) ? medicalConditions : [medicalConditions]) : null,
+        injuries: injuries || null,
+        dietary_preferences: dietaryPreferences ? (Array.isArray(dietaryPreferences) ? dietaryPreferences : [dietaryPreferences]) : null,
+        sleep_hours: sleepHours || null,
+        stress_level: stressLevel || null,
+        smoking_status: smokingStatus || null,
+        preferred_workout_time: preferredWorkoutTime || null,
+        gym_access: gymAccess || null,
+        equipment: equipment ? (Array.isArray(equipment) ? equipment : [equipment]) : null,
+        motivation_level: motivationLevel || null,
+        wallet_address: walletAddress || null
+      });
+      if (profileError) {
+        console.error('Fitness profile creation error:', profileError);
+        return res.status(400).json({ message: 'Failed to create fitness profile', error: profileError.message });
+      }
       console.log('Fitness profile created for user:', userId);
     } catch (err) {
       console.error('Fitness profile creation error:', err);
@@ -133,19 +127,51 @@ export const register = async (req, res) => {
 
     // Insert initial progression and stats
     try {
-      await pool.query(
-        `INSERT INTO user_progression 
-          (user_id, level, stat_points, xp_today, rank, total_xp, weekly_xp, monthly_xp, experience_points, next_level_percent, joined_date, last_active, created_at)
-         VALUES ($1, 1, 0, 0, 'F', 0, 0, 0, 0, 0, NOW(), NOW(), NOW())`,
-        [userId]
-      );
-      await pool.query(
-        `INSERT INTO user_stats 
-          (user_id, user_id_ref, bench_press, deadlift, squat, total_lifted, strength_goal, distance_run_km, calories_burned, cardio_sessions, longest_run_km, speed, reflex_time, flexibility, bmi, resting_heart_rate, sleep_quality, stress_level, health, base_stats, experience_points, created_at, updated_at)
-         VALUES ($1, $1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 10, 0, NOW(), NOW())`,
-        [userId]
-      );
-      console.log('Progression and stats created for user:', userId);
+      const { error: progError } = await supabase.from('user_progression').insert({
+        user_id: userId,
+        level: 1,
+        stat_points: 0,
+        xp_today: 0,
+        rank: 'F',
+        total_xp: 0,
+        weekly_xp: 0,
+        monthly_xp: 0,
+        experience_points: 0,
+        next_level_percent: 0,
+        joined_date: new Date().toISOString(),
+        last_active: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      });
+      const { error: statsError } = await supabase.from('user_stats').insert({
+        user_id: userId,
+        user_id_ref: userId,
+        bench_press: 0,
+        deadlift: 0,
+        squat: 0,
+        total_lifted: 0,
+        strength_goal: 0,
+        distance_run_km: 0,
+        calories_burned: 0,
+        cardio_sessions: 0,
+        longest_run_km: 0,
+        speed: 0,
+        reflex_time: 0,
+        flexibility: 0,
+        bmi: 0,
+        resting_heart_rate: 0,
+        sleep_quality: 0,
+        stress_level: 0,
+        health: 10,
+        base_stats: 10,
+        experience_points: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      if (progError || statsError) {
+        console.error('Error creating initial progression/stats:', progError || statsError);
+      } else {
+        console.log('Progression and stats created for user:', userId);
+      }
     } catch (err) {
       // Don't block registration if these fail, just log
       console.error('Error creating initial progression/stats:', err);
@@ -211,43 +237,23 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: 'Email and password required' });
     }
 
-    // Find user by email
-    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    const user = rows[0];
-    if (!user) {
-      console.error('Login failed - user not found:', email);
+    // Login with Supabase Auth
+    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    if (loginError || !loginData.user) {
+      console.error('Login failed:', loginError ? loginError.message : 'No user');
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-
-    // Compare password
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) {
-      console.error('Login failed - invalid password for:', email);
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
+    const user = loginData.user;
     // Fetch fitness profile
-    const fitnessResult = await pool.query('SELECT * FROM fitness_profiles WHERE user_id = $1', [user.id]);
-    const fitness = fitnessResult.rows[0] || {};
-
-    // Auto-generate tasks if user has none
-    try {
-      const tasksCheck = await pool.query(
-        'SELECT COUNT(*) as count FROM tasks WHERE user_id = $1',
-        [user.id]
-      );
-      
-      if (tasksCheck.rows[0].count === 0) {
-        console.log(`[Login] Auto-generating 5 tasks for user ${user.id}...`);
-        for (let i = 0; i < 5; i++) {
-          await generateAndStoreTask(user.id);
-        }
-        console.log(`[Login] ✅ Generated 5 tasks for user ${user.id}`);
-      }
-    } catch (genErr) {
-      console.error(`[Login] Error auto-generating tasks: ${genErr.message}`);
-      // Continue with login even if task generation fails
+    const { data: fitness, error: fitnessError } = await supabase.from('fitness_profiles').select('*').eq('user_id', user.id).single();
+    if (fitnessError) {
+      console.error('Fitness profile fetch error:', fitnessError.message);
     }
+
+    // (Optional) Auto-generate tasks if user has none (Supabase version not implemented)
 
     // Generate JWT token
     const token = generateToken(user.id);
