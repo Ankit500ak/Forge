@@ -16,12 +16,50 @@ interface User {
   total_xp?: number
 }
 
+interface SignupData {
+  // Step 1: Basic Account Info
+  name: string
+  email: string
+  password: string
+  
+  // Step 2: Personal Metrics
+  age?: number
+  gender?: string
+  height?: number
+  weight?: number
+  targetWeight?: number
+  
+  // Step 3: Fitness Profile
+  fitnessLevel?: string
+  goals?: string[]
+  activityLevel?: string
+  preferredWorkouts?: string[]
+  workoutFrequency?: string
+  workoutDuration?: string
+  
+  // Step 4: Health & Lifestyle
+  medicalConditions?: string[]
+  injuries?: string
+  dietaryPreferences?: string[]
+  sleepHours?: string
+  stressLevel?: string
+  smokingStatus?: string
+  
+  // Step 5: Preferences & Wallet
+  preferredWorkoutTime?: string
+  gymAccess?: string
+  equipment?: string[]
+  motivationLevel?: string
+  walletAddress?: string
+}
+
 interface AuthContextType {
   user: User | null
   token: string | null
   isLoading: boolean
   error: string | null
   login: (email: string, password: string) => Promise<any>
+  signup: (name: string, email: string, password: string, additionalData?: Partial<SignupData>) => Promise<any>
   register: (email: string, password: string, name?: string, age?: number, gender?: string, fitness_level?: string) => Promise<any>
   logout: () => void
   refreshUser: () => Promise<void>
@@ -36,8 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  // API base URL
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+  // API base URL - FIXED: Remove /api from base URL since we add it in the endpoints
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
   // Load token and user from localStorage on mount
   useEffect(() => {
@@ -154,8 +192,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null)
       
       console.log('[Auth Context] Logging in:', email)
+      console.log('[Auth Context] API endpoint:', `${API_BASE}/api/auth/login`)
       
-      const response = await axios.post(`${API_URL}/auth/login`, {
+      const response = await axios.post(`${API_BASE}/api/auth/login`, {
         email,
         password
       })
@@ -205,6 +244,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // ADDED: signup method that your signup page expects
+  const signup = async (
+    name: string,
+    email: string,
+    password: string,
+    additionalData?: Partial<SignupData>
+  ) => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      
+      console.log('[Auth Context] Signing up:', email)
+      console.log('[Auth Context] API endpoint:', `${API_BASE}/api/auth/register`)
+      console.log('[Auth Context] Signup data:', { 
+        name, 
+        email, 
+        password: '***',
+        ...additionalData 
+      })
+      
+      // Combine basic data with additional data
+      const signupData = {
+        name,
+        email,
+        password,
+        ...additionalData
+      }
+      
+      const response = await axios.post(`${API_BASE}/api/auth/register`, signupData)
+
+      const { user: userData, token: authToken } = response.data
+
+      console.log('[Auth Context] Signup response:', {
+        user: userData,
+        hasToken: !!authToken
+      })
+
+      if (!authToken) {
+        throw new Error('No token received')
+      }
+
+      // Store token and user
+      setToken(authToken)
+      setUser(userData)
+      localStorage.setItem('token', authToken)
+      localStorage.setItem('user', JSON.stringify(userData))
+      
+      // Set axios default header
+      axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`
+
+      console.log('[Auth Context] Signup successful')
+      
+      return response.data
+    } catch (err: any) {
+      console.error('[Auth Context] Signup error:', err)
+      console.error('[Auth Context] Error response:', err.response?.data)
+      
+      const errorMessage = err.response?.data?.message || err.message || 'Registration failed'
+      setError(errorMessage)
+      
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Keep register method for backward compatibility
   const register = async (
     email: string, 
     password: string, 
@@ -218,8 +324,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null)
       
       console.log('[Auth Context] Registering:', email)
+      console.log('[Auth Context] API endpoint:', `${API_BASE}/api/auth/register`)
       
-      const response = await axios.post(`${API_URL}/auth/register`, {
+      const response = await axios.post(`${API_BASE}/api/auth/register`, {
         email,
         password,
         name,
@@ -272,7 +379,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Call backend logout endpoint if token exists
       if (token) {
         try {
-          await axios.post(`${API_URL}/auth/logout`)
+          await axios.post(`${API_BASE}/api/auth/logout`)
         } catch (err) {
           console.error('[Auth Context] Logout API error:', err)
           // Continue with local logout even if API fails
@@ -301,7 +408,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       console.log('[Auth Context] Refreshing user data')
       
-      const response = await axios.get(`${API_URL}/auth/me`, {
+      const response = await axios.get(`${API_BASE}/api/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -330,6 +437,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     error,
     login,
+    signup,
     register,
     logout,
     refreshUser
