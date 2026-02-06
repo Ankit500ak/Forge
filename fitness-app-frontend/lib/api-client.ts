@@ -77,7 +77,7 @@ export const authApi = {
 export const taskApi = {
   // Get today's tasks
   getTodayTasks: () =>
-    apiClient.get('/tasks/today'),
+    apiClient.get('/api/tasks/today'),
   
   // Get all user tasks
   getUserTasks: () =>

@@ -86,7 +86,7 @@ function DashboardContent() {
         setXpGainedToday(0);
         setLastXpResetDate(today);
         if (user?.id) {
-          apiClient.get('/tasks/today').then(response => {
+          apiClient.get('/api/tasks/today').then(response => {
             const transformedTasks = response.data.tasks.map((task: any, index: number) => transformTask(task, index));
             setTodayTasks(transformedTasks);
           });
@@ -128,7 +128,7 @@ function DashboardContent() {
     // Fetch progression data for rank-up conditions
     const fetchProgressionData = async () => {
       try {
-        const response = await apiClient.get('/users/me/game')
+        const response = await apiClient.get('/api/users/me/game')
         const data = response.data?.progression || null
         if (data) {
           setProgression(data)
@@ -184,7 +184,7 @@ function DashboardContent() {
       
       try {
         setTasksLoading(true)
-        const response = await apiClient.get('/tasks/today')
+        const response = await apiClient.get('/api/tasks/today')
         const transformedTasks = response.data.tasks.map((task: any, index: number) => transformTask(task, index))
         
         console.log('Transformed tasks:', transformedTasks)
@@ -231,13 +231,13 @@ function DashboardContent() {
     setProgression(newProgression);
 
     try {
-      const response = await apiClient.get('/tasks/today')
+      const response = await apiClient.get('/api/tasks/today')
       const transformedTasks = response.data.tasks.map((task: any, index: number) => transformTask(task, index))
       setTodayTasks(transformedTasks)
       
       if (transformedTasks.length === 0 && !pollIntervalRef.current) {
         pollIntervalRef.current = setInterval(async () => {
-          const res = await apiClient.get('/tasks/today')
+          const res = await apiClient.get('/api/tasks/today')
           const tasks = res.data.tasks.map((task: any, index: number) => transformTask(task, index))
           setTodayTasks(tasks)
           if (tasks.length > 0 && pollIntervalRef.current) {
