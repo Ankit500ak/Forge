@@ -12,7 +12,7 @@ const apiClient = axios.create({
 
 // Add token to requests if available
 apiClient.interceptors.request.use((config) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -26,9 +26,9 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       // Clear auth on 401
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('forgeUser');
-        window.location.href = '/';
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/signin';
       }
     }
     return Promise.reject(error);
