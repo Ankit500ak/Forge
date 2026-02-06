@@ -1360,3 +1360,57 @@ export const validateAuthConfig = () => {
   console.log('[Auth Config] ✅ Authentication configuration validated');
   return true;
 };
+
+/**
+ * Initialize user records (progression, stats, fitness profile)
+ * POST /api/auth/initialize
+ * Headers: Authorization: Bearer <token>
+ * Used to ensure all required records exist for a user
+ */
+export const initializeUserData = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ 
+        message: 'Not authenticated',
+        error: 'Unauthenticated' 
+      });
+    }
+
+    console.log('[Initialize] Initializing user data for:', userId);
+
+    // Get user info
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('fitness_level')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ 
+        message: 'User not found',
+        error: 'UserNotFound' 
+      });
+    }
+
+    // Initialize with user's fitness level
+    const results = await initializeUserRecords(userId, {
+      fitnessLevel: user.fitness_level || 'beginner'
+    });
+
+    console.log('[Initialize] ✅ User data initialized');
+
+    res.json({
+      message: 'User data initialized successfully',
+      initialized: results
+    });
+
+  } catch (err) {
+    console.error('[Initialize] ❌ Error initializing user data:', err.message);
+    res.status(500).json({ 
+      message: 'Failed to initialize user data', 
+      error: err.message 
+    });
+  }
+};
