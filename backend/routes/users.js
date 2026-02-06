@@ -107,25 +107,31 @@ router.get('/me/game', authenticate, async (req, res) => {
   try {
     const userId = req.userId;
 
-    // Get progression
+    // Get progression - use maybeSingle() to handle when record doesn't exist
     const { data: progData, error: progError } = await supabase
       .from('user_progression')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    if (progError && progError.code !== 'PGRST116') { // PGRST116 = no rows returned
+    if (progError) {
+      console.error('[Users] Error fetching progression:', progError.message);
       return res.status(500).json({ message: 'Server error', error: progError.message });
     }
 
     const progression = progData || null;
 
-    // Get stats
+    // Get stats - use maybeSingle() to handle when record doesn't exist
     const { data: statsData, error: statsError } = await supabase
       .from('user_stats')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
+
+    if (statsError) {
+      console.error('[Users] Error fetching stats:', statsError.message);
+      // Don't block if stats error - return what we have
+    }
 
     const stats = statsData || null;
 

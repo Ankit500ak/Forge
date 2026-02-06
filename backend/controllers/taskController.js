@@ -128,14 +128,15 @@ export const getTodayTasks = async (req, res) => {
     // Check if user has ANY tasks
     const { count: taskCount, error: countError } = await supabase
       .from('tasks')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('user_id', userId);
 
     if (countError) {
-      console.error('[getTodayTasks] Error counting tasks:', countError);
+      console.error('[getTodayTasks] Error counting tasks:', countError.message, countError.code, countError.details);
       return res.status(500).json({ 
         message: 'Failed to check user tasks', 
-        error: countError.message 
+        error: countError.message || 'Unknown error',
+        code: countError.code 
       });
     }
     
