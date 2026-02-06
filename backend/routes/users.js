@@ -106,6 +106,7 @@ router.put('/profile/update', authenticate, async (req, res) => {
 router.get('/me/game', authenticate, async (req, res) => {
   try {
     const userId = req.userId;
+    console.log(`[Users] Fetching game data for user: ${userId}`);
 
     // Get progression - use maybeSingle() to handle when record doesn't exist
     const { data: progData, error: progError } = await supabase
@@ -115,11 +116,27 @@ router.get('/me/game', authenticate, async (req, res) => {
       .maybeSingle();
 
     if (progError) {
-      console.error('[Users] Error fetching progression:', progError.message);
+      console.error('[Users] ❌ Error fetching progression:');
+      console.error('  Message:', progError.message);
+      console.error('  Code:', progError.code);
+      console.error('  Details:', progError.details);
+      console.error('  Hint:', progError.hint);
+      
+      // If it's RLS error (code 42501), provide helpful message
+      if (progError.code === '42501') {
+        return res.status(500).json({ 
+          message: 'Database access denied (RLS enabled)',
+          error: 'RLS_PERMISSION_DENIED',
+          details: 'RLS is blocking access. It needs to be disabled in Supabase dashboard.',
+          table: 'user_progression'
+        });
+      }
+      
       return res.status(500).json({ message: 'Server error', error: progError.message });
     }
 
     const progression = progData || null;
+    console.log(`[Users] Progression data:`, progression ? 'Found' : 'Not found');
 
     // Get stats - use maybeSingle() to handle when record doesn't exist
     const { data: statsData, error: statsError } = await supabase
@@ -129,7 +146,18 @@ router.get('/me/game', authenticate, async (req, res) => {
       .maybeSingle();
 
     if (statsError) {
-      console.error('[Users] Error fetching stats:', statsError.message);
+      console.error('[Users] ❌ Error fetching stats:');
+      console.error('  Message:', statsError.message);
+      console.error('  Code:', statsError.code);
+      
+      if (statsError.code === '42501') {
+        return res.status(500).json({ 
+          message: 'Database access denied (RLS enabled)',
+          error: 'RLS_PERMISSION_DENIED',
+          details: 'RLS is blocking access. It needs to be disabled in Supabase dashboard.',
+          table: 'user_stats'
+        });
+      }
       // Don't block if stats error - return what we have
     }
 

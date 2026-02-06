@@ -132,7 +132,23 @@ export const getTodayTasks = async (req, res) => {
       .eq('user_id', userId);
 
     if (countError) {
-      console.error('[getTodayTasks] Error counting tasks:', countError.message, countError.code, countError.details);
+      console.error('[getTodayTasks] ❌ Error counting tasks:');
+      console.error('  Message:', countError.message);
+      console.error('  Code:', countError.code);
+      console.error('  Details:', countError.details);
+      console.error('  Hint:', countError.hint);
+      
+      // If it's RLS error (code 42501), provide helpful message
+      if (countError.code === '42501') {
+        return res.status(500).json({ 
+          message: 'Database access denied (RLS enabled)',
+          error: 'RLS_PERMISSION_DENIED',
+          details: 'RLS is blocking access to tasks table. Go to Supabase dashboard and disable RLS.',
+          table: 'tasks',
+          code: countError.code
+        });
+      }
+      
       return res.status(500).json({ 
         message: 'Failed to check user tasks', 
         error: countError.message || 'Unknown error',

@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import ranksRoutes from './routes/ranks.js';
 import taskRoutes from './routes/tasks.js';
+import debugRoutes from './routes/debug.js';
 import { initXpRolloverService, triggerRollover } from './services/xpRollover.js';
 import { initializeTaskScheduler } from './services/taskScheduler.js';
 import { Pool } from 'pg';
@@ -78,6 +79,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ranks', ranksRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/debug', debugRoutes);
 
 // Manual XP rollover trigger (for testing/admin)
 app.post('/api/admin/rollover', async (req, res) => {
