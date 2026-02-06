@@ -371,7 +371,32 @@ export const validateAuthConfig = () => {
     console.error('[Auth] ❌ SUPABASE_SERVICE_ROLE_KEY is not configured!');
     throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable must be set');
   }
-
   console.log('[Auth] ✅ Authentication configuration validated');
   return true;
+};
+
+export const login = async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email and password are required.' });
+  }
+
+  try {
+    // Supabase signInWithPassword
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    if (error) {
+      return res.status(401).json({ message: 'Invalid credentials', error: error.message });
+    }
+    // Return token and user info
+    res.json({
+      message: 'Login successful',
+      user: data.user,
+      access_token: data.session?.access_token || null
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 };
