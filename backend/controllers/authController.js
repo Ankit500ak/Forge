@@ -836,15 +836,31 @@ export const login = async (req, res) => {
     console.log('[Login] ✅ User profile validated');
 
     // Initialize user records if they don't exist
-    console.log('[Login] Initializing user records...');
-    const initResults = await initializeUserRecords(userProfile.id, {
-      fitnessLevel: userProfile.fitness_level || 'beginner'
-    });
-    
-    if (initResults.errors.length > 0) {
-      console.warn('[Login] ⚠️ Some records failed to initialize:', initResults.errors);
-    } else {
-      console.log('[Login] ✅ User records initialized');
+    console.log('[Login] 🔄 Initializing user records for user:', userProfile.id);
+    try {
+      const initResults = await initializeUserRecords(userProfile.id, {
+        fitnessLevel: userProfile.fitness_level || 'beginner'
+      });
+      
+      console.log('[Login] Init results:', {
+        stats: initResults.stats ? 'created' : 'skipped',
+        progression: initResults.progression ? 'created' : 'skipped',
+        fitness: initResults.fitness ? 'created' : 'skipped',
+        errors: initResults.errors.length
+      });
+      
+      if (initResults.errors.length > 0) {
+        console.warn('[Login] ⚠️ Some records failed to initialize:');
+        initResults.errors.forEach(err => {
+          console.warn(`  - ${err.table}: ${err.error}`);
+        });
+      } else {
+        console.log('[Login] ✅ All user records initialized successfully');
+      }
+    } catch (initErr) {
+      console.error('[Login] ❌ Error during initialization:', initErr.message);
+      console.error('[Login] Stack:', initErr.stack);
+      // Don't block login even if initialization fails
     }
 
     // Generate custom JWT token using DATABASE user ID (not auth ID)
