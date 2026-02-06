@@ -185,7 +185,7 @@ export default function SignupPage() {
     setStep(prev => prev + 1)
   }
 
-  // Handle form submission - FIXED VERSION
+  // Handle form submission - ALIGNED WITH BACKEND
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -197,7 +197,7 @@ export default function SignupPage() {
         return
       }
       
-      // Prepare additional data (everything except name, email, password)
+      // Prepare additional data - EXACT FIELD NAMES FROM BACKEND
       const additionalData = {
         // Step 2: Personal Metrics
         age: age ? parseInt(age) : undefined,
@@ -206,7 +206,8 @@ export default function SignupPage() {
         weight: weight ? parseFloat(weight) : undefined,
         targetWeight: targetWeight ? parseFloat(targetWeight) : undefined,
         // Step 3: Fitness Profile
-        fitnessLevel,
+        fitness_level: fitnessLevel, // Backend uses fitness_level
+        fitnessLevel, // Also send as fitnessLevel for compatibility
         goals,
         activityLevel,
         preferredWorkouts,
@@ -234,7 +235,7 @@ export default function SignupPage() {
         ...additionalData
       })
       
-      // FIXED: Pass name, email, password as primary params, rest as additionalData
+      // Pass name, email, password as primary params, rest as additionalData
       await signup(name, email, password, additionalData)
       router.push('/dashboard')
     } catch (err: any) {
@@ -472,8 +473,552 @@ export default function SignupPage() {
                 </div>
               )}
 
-              {/* REST OF THE STEPS - Keeping all your existing step 2, 3, 4, 5 code exactly as is */}
-              {/* I'm truncating here for brevity, but in the actual file, include ALL your step components */}
+              {/* STEP 2: PERSONAL METRICS */}
+              {step === 2 && (
+                <div className="space-y-5 animate-fadeIn">
+                  <div className="text-center mb-6">
+                    <Ruler className="w-12 h-12 mx-auto mb-3 text-purple-400" strokeWidth={2} />
+                    <h2 className="text-xl font-black text-white uppercase tracking-wide">Physical Stats</h2>
+                    <p className="text-purple-300/60 text-sm mt-1">Your current attributes</p>
+                  </div>
+
+                  {/* Age */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      <Calendar className="w-4 h-4 inline mr-2" />
+                      Age *
+                    </label>
+                    <input
+                      type="number"
+                      value={age}
+                      onChange={(e) => setAge(e.target.value)}
+                      className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-white placeholder-purple-300/40 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      placeholder="Enter your age"
+                      min="13"
+                      max="120"
+                      style={{ backdropFilter: 'blur(10px)' }}
+                    />
+                  </div>
+
+                  {/* Gender */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      <User className="w-4 h-4 inline mr-2" />
+                      Gender *
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {['male', 'female', 'other'].map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setGender(g)}
+                          className={`py-3 rounded-xl font-bold uppercase text-sm transition-all duration-300 border ${
+                            gender === g
+                              ? 'bg-gradient-to-br from-purple-600 via-violet-600 to-blue-600 text-white border-purple-400/50'
+                              : 'bg-black/40 text-purple-300/60 border-purple-500/30 hover:border-purple-500/50'
+                          }`}
+                          style={{ backdropFilter: 'blur(10px)' }}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Height */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      <Ruler className="w-4 h-4 inline mr-2" />
+                      Height (cm) *
+                    </label>
+                    <input
+                      type="number"
+                      value={height}
+                      onChange={(e) => setHeight(e.target.value)}
+                      className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-white placeholder-purple-300/40 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      placeholder="Enter your height"
+                      min="100"
+                      max="250"
+                      style={{ backdropFilter: 'blur(10px)' }}
+                    />
+                  </div>
+
+                  {/* Weight */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      <Weight className="w-4 h-4 inline mr-2" />
+                      Current Weight (kg) *
+                    </label>
+                    <input
+                      type="number"
+                      value={weight}
+                      onChange={(e) => setWeight(e.target.value)}
+                      className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-white placeholder-purple-300/40 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      placeholder="Enter your weight"
+                      min="30"
+                      max="300"
+                      step="0.1"
+                      style={{ backdropFilter: 'blur(10px)' }}
+                    />
+                  </div>
+
+                  {/* Target Weight */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      <Target className="w-4 h-4 inline mr-2" />
+                      Target Weight (kg)
+                    </label>
+                    <input
+                      type="number"
+                      value={targetWeight}
+                      onChange={(e) => setTargetWeight(e.target.value)}
+                      className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-white placeholder-purple-300/40 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      placeholder="Your goal weight (optional)"
+                      min="30"
+                      max="300"
+                      step="0.1"
+                      style={{ backdropFilter: 'blur(10px)' }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: FITNESS PROFILE */}
+              {step === 3 && (
+                <div className="space-y-5 animate-fadeIn">
+                  <div className="text-center mb-6">
+                    <Activity className="w-12 h-12 mx-auto mb-3 text-purple-400" strokeWidth={2} />
+                    <h2 className="text-xl font-black text-white uppercase tracking-wide">Combat Skills</h2>
+                    <p className="text-purple-300/60 text-sm mt-1">Your fitness abilities</p>
+                  </div>
+
+                  {/* Fitness Level */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Rank Level *
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {['beginner', 'intermediate', 'advanced'].map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setFitnessLevel(level)}
+                          className={`py-3 rounded-xl font-bold uppercase text-xs transition-all duration-300 border ${
+                            fitnessLevel === level
+                              ? 'bg-gradient-to-br from-purple-600 via-violet-600 to-blue-600 text-white border-purple-400/50'
+                              : 'bg-black/40 text-purple-300/60 border-purple-500/30 hover:border-purple-500/50'
+                          }`}
+                          style={{ backdropFilter: 'blur(10px)' }}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Activity Level */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Activity Level *
+                    </label>
+                    <select
+                      value={activityLevel}
+                      onChange={(e) => setActivityLevel(e.target.value)}
+                      className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      style={{ backdropFilter: 'blur(10px)' }}
+                    >
+                      <option value="" disabled className="bg-black">Select activity level</option>
+                      <option value="sedentary" className="bg-black">Sedentary (Little to no exercise)</option>
+                      <option value="light" className="bg-black">Light (1-3 days/week)</option>
+                      <option value="moderate" className="bg-black">Moderate (3-5 days/week)</option>
+                      <option value="active" className="bg-black">Active (6-7 days/week)</option>
+                      <option value="very-active" className="bg-black">Very Active (Intense daily)</option>
+                    </select>
+                  </div>
+
+                  {/* Goals */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Quest Objectives * (Select at least 1)
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {goalOptions.map((goal) => (
+                        <button
+                          key={goal}
+                          type="button"
+                          onClick={() => toggleGoal(goal)}
+                          className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all duration-300 border ${
+                            goals.includes(goal)
+                              ? 'bg-gradient-to-br from-purple-600 via-violet-600 to-blue-600 text-white border-purple-400/50'
+                              : 'bg-black/40 text-purple-300/60 border-purple-500/30 hover:border-purple-500/50'
+                          }`}
+                          style={{ backdropFilter: 'blur(10px)' }}
+                        >
+                          {goal}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Preferred Workouts */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Preferred Combat Styles
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {workoutOptions.map((workout) => (
+                        <button
+                          key={workout}
+                          type="button"
+                          onClick={() => toggleWorkout(workout)}
+                          className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all duration-300 border ${
+                            preferredWorkouts.includes(workout)
+                              ? 'bg-gradient-to-br from-purple-600 via-violet-600 to-blue-600 text-white border-purple-400/50'
+                              : 'bg-black/40 text-purple-300/60 border-purple-500/30 hover:border-purple-500/50'
+                          }`}
+                          style={{ backdropFilter: 'blur(10px)' }}
+                        >
+                          {workout}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Workout Frequency */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Training Frequency
+                    </label>
+                    <select
+                      value={workoutFrequency}
+                      onChange={(e) => setWorkoutFrequency(e.target.value)}
+                      className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      style={{ backdropFilter: 'blur(10px)' }}
+                    >
+                      <option value="" disabled className="bg-black">How often do you train?</option>
+                      <option value="1-2" className="bg-black">1-2 times/week</option>
+                      <option value="3-4" className="bg-black">3-4 times/week</option>
+                      <option value="5-6" className="bg-black">5-6 times/week</option>
+                      <option value="daily" className="bg-black">Daily</option>
+                    </select>
+                  </div>
+
+                  {/* Workout Duration */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Training Duration
+                    </label>
+                    <select
+                      value={workoutDuration}
+                      onChange={(e) => setWorkoutDuration(e.target.value)}
+                      className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      style={{ backdropFilter: 'blur(10px)' }}
+                    >
+                      <option value="" disabled className="bg-black">Average session length</option>
+                      <option value="15-30" className="bg-black">15-30 minutes</option>
+                      <option value="30-45" className="bg-black">30-45 minutes</option>
+                      <option value="45-60" className="bg-black">45-60 minutes</option>
+                      <option value="60+" className="bg-black">60+ minutes</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: HEALTH & LIFESTYLE */}
+              {step === 4 && (
+                <div className="space-y-5 animate-fadeIn">
+                  <div className="text-center mb-6">
+                    <Heart className="w-12 h-12 mx-auto mb-3 text-purple-400" strokeWidth={2} />
+                    <h2 className="text-xl font-black text-white uppercase tracking-wide">Status Effects</h2>
+                    <p className="text-purple-300/60 text-sm mt-1">Health and lifestyle information</p>
+                  </div>
+
+                  {/* Medical Conditions */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Medical Conditions
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {medicalOptions.map((condition) => (
+                        <button
+                          key={condition}
+                          type="button"
+                          onClick={() => toggleMedical(condition)}
+                          className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all duration-300 border ${
+                            medicalConditions.includes(condition)
+                              ? 'bg-gradient-to-br from-purple-600 via-violet-600 to-blue-600 text-white border-purple-400/50'
+                              : 'bg-black/40 text-purple-300/60 border-purple-500/30 hover:border-purple-500/50'
+                          }`}
+                          style={{ backdropFilter: 'blur(10px)' }}
+                        >
+                          {condition}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Injuries */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Current Injuries or Limitations
+                    </label>
+                    <textarea
+                      value={injuries}
+                      onChange={(e) => setInjuries(e.target.value)}
+                      className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-white placeholder-purple-300/40 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all resize-none"
+                      placeholder="Describe any injuries or physical limitations..."
+                      rows={3}
+                      style={{ backdropFilter: 'blur(10px)' }}
+                    />
+                  </div>
+
+                  {/* Dietary Preferences */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Dietary Preferences
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {dietOptions.map((diet) => (
+                        <button
+                          key={diet}
+                          type="button"
+                          onClick={() => toggleDiet(diet)}
+                          className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all duration-300 border ${
+                            dietaryPreferences.includes(diet)
+                              ? 'bg-gradient-to-br from-purple-600 via-violet-600 to-blue-600 text-white border-purple-400/50'
+                              : 'bg-black/40 text-purple-300/60 border-purple-500/30 hover:border-purple-500/50'
+                          }`}
+                          style={{ backdropFilter: 'blur(10px)' }}
+                        >
+                          {diet}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sleep Hours */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Average Sleep Hours
+                    </label>
+                    <select
+                      value={sleepHours}
+                      onChange={(e) => setSleepHours(e.target.value)}
+                      className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      style={{ backdropFilter: 'blur(10px)' }}
+                    >
+                      <option value="" disabled className="bg-black">How much do you sleep?</option>
+                      <option value="<5" className="bg-black">Less than 5 hours</option>
+                      <option value="5-6" className="bg-black">5-6 hours</option>
+                      <option value="7-8" className="bg-black">7-8 hours</option>
+                      <option value="9+" className="bg-black">9+ hours</option>
+                    </select>
+                  </div>
+
+                  {/* Stress Level */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Stress Level
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {['low', 'moderate', 'high'].map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setStressLevel(level)}
+                          className={`py-3 rounded-xl font-bold uppercase text-xs transition-all duration-300 border ${
+                            stressLevel === level
+                              ? 'bg-gradient-to-br from-purple-600 via-violet-600 to-blue-600 text-white border-purple-400/50'
+                              : 'bg-black/40 text-purple-300/60 border-purple-500/30 hover:border-purple-500/50'
+                          }`}
+                          style={{ backdropFilter: 'blur(10px)' }}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Smoking Status */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Smoking Status
+                    </label>
+                    <select
+                      value={smokingStatus}
+                      onChange={(e) => setSmokingStatus(e.target.value)}
+                      className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      style={{ backdropFilter: 'blur(10px)' }}
+                    >
+                      <option value="" disabled className="bg-black">Select status</option>
+                      <option value="non-smoker" className="bg-black">Non-smoker</option>
+                      <option value="former-smoker" className="bg-black">Former smoker</option>
+                      <option value="occasional-smoker" className="bg-black">Occasional smoker</option>
+                      <option value="regular-smoker" className="bg-black">Regular smoker</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 5: PREFERENCES & WALLET */}
+              {step === 5 && (
+                <div className="space-y-5 animate-fadeIn">
+                  <div className="text-center mb-6">
+                    <Crown className="w-12 h-12 mx-auto mb-3 text-purple-400" strokeWidth={2} />
+                    <h2 className="text-xl font-black text-white uppercase tracking-wide">Hunter's Arsenal</h2>
+                    <p className="text-purple-300/60 text-sm mt-1">Your preferences and rewards wallet</p>
+                  </div>
+
+                  {/* Preferred Workout Time */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Preferred Training Time
+                    </label>
+                    <select
+                      value={preferredWorkoutTime}
+                      onChange={(e) => setPreferredWorkoutTime(e.target.value)}
+                      className="w-full bg-black/40 border border-purple-500/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      style={{ backdropFilter: 'blur(10px)' }}
+                    >
+                      <option value="" disabled className="bg-black">When do you prefer to train?</option>
+                      <option value="early-morning" className="bg-black">Early Morning (5-8 AM)</option>
+                      <option value="morning" className="bg-black">Morning (8-12 PM)</option>
+                      <option value="afternoon" className="bg-black">Afternoon (12-5 PM)</option>
+                      <option value="evening" className="bg-black">Evening (5-9 PM)</option>
+                      <option value="night" className="bg-black">Night (9 PM+)</option>
+                    </select>
+                  </div>
+
+                  {/* Gym Access */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Gym Access
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {['yes', 'no'].map((access) => (
+                        <button
+                          key={access}
+                          type="button"
+                          onClick={() => setGymAccess(access)}
+                          className={`py-3 rounded-xl font-bold uppercase text-sm transition-all duration-300 border ${
+                            gymAccess === access
+                              ? 'bg-gradient-to-br from-purple-600 via-violet-600 to-blue-600 text-white border-purple-400/50'
+                              : 'bg-black/40 text-purple-300/60 border-purple-500/30 hover:border-purple-500/50'
+                          }`}
+                          style={{ backdropFilter: 'blur(10px)' }}
+                        >
+                          {access === 'yes' ? 'Have Gym Access' : 'No Gym Access'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Equipment */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Available Equipment
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {equipmentOptions.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => toggleEquipment(item)}
+                          className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all duration-300 border ${
+                            equipment.includes(item)
+                              ? 'bg-gradient-to-br from-purple-600 via-violet-600 to-blue-600 text-white border-purple-400/50'
+                              : 'bg-black/40 text-purple-300/60 border-purple-500/30 hover:border-purple-500/50'
+                          }`}
+                          style={{ backdropFilter: 'blur(10px)' }}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Motivation Level */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      Motivation Level
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {['low', 'moderate', 'high'].map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setMotivationLevel(level)}
+                          className={`py-3 rounded-xl font-bold uppercase text-xs transition-all duration-300 border ${
+                            motivationLevel === level
+                              ? 'bg-gradient-to-br from-purple-600 via-violet-600 to-blue-600 text-white border-purple-400/50'
+                              : 'bg-black/40 text-purple-300/60 border-purple-500/30 hover:border-purple-500/50'
+                          }`}
+                          style={{ backdropFilter: 'blur(10px)' }}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Wallet Connection */}
+                  <div>
+                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
+                      <Wallet className="w-4 h-4 inline mr-2" />
+                      Connect Wallet (Optional)
+                    </label>
+                    
+                    {!walletAddress ? (
+                      <button
+                        type="button"
+                        onClick={connectMetaMask}
+                        disabled={isConnectingWallet}
+                        className="w-full bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white font-black py-3.5 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 uppercase tracking-wider text-sm border border-orange-400/30"
+                        style={{
+                          boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0, 0, 0, 0.5)',
+                          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+                        }}
+                      >
+                        {isConnectingWallet ? (
+                          <>
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>Connecting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Wallet className="w-5 h-5" />
+                            <span>Connect MetaMask</span>
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <div className="bg-black/40 border border-green-500/50 rounded-xl p-4"
+                           style={{ backdropFilter: 'blur(10px)' }}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <p className="text-green-400 text-xs font-bold uppercase tracking-wide mb-1">
+                              ✓ Wallet Connected
+                            </p>
+                            <p className="text-purple-200 text-sm font-mono break-all">
+                              {walletAddress}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={disconnectWallet}
+                            className="shrink-0 text-red-400 hover:text-red-300 text-xs font-bold uppercase tracking-wide transition-colors"
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-purple-300/50 text-xs mt-2">
+                      Earn rewards and track achievements on the blockchain
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Navigation buttons */}
               <div className="flex gap-3 mt-6 sm:mt-8">
