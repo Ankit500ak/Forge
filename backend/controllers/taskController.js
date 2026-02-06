@@ -1,3 +1,7 @@
+// Debug log for Supabase env vars
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
+console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY);
+
 import { createClient } from '@supabase/supabase-js';
 import { checkLevelUp, getLevelFromXp } from '../utils/level.js';
 import { generateAndStoreTask, getRecentTasks } from '../mlTaskGenerator.js';
