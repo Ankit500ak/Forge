@@ -9,19 +9,10 @@ const router = express.Router();
 
 // Parse connection string to avoid system environment variable interference
 const parseConnectionString = () => {
-  const url = process.env.POSTGRES_URL || 'postgresql://postgres:postgres@localhost:5432/fitnessdb';
-  const match = url.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
-  if (match) {
-    return {
-      user: match[1],
-      password: match[2],
-      host: match[3],
-      port: parseInt(match[4]),
-      database: match[5],
-      connectionTimeoutMillis: 5000
-    };
+  if (!process.env.POSTGRES_URL) {
+    throw new Error('POSTGRES_URL environment variable is required.');
   }
-  return { connectionString: url, connectionTimeoutMillis: 5000 };
+  return { connectionString: process.env.POSTGRES_URL, connectionTimeoutMillis: 5000 };
 };
 
 const pool = new Pool(parseConnectionString());
