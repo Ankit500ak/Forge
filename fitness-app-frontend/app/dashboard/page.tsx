@@ -264,8 +264,8 @@ function DashboardContent() {
     return colors[rank] || colors['F']
   }
 
-  const rankColor = getRankColor(user.rank ?? 'F')
-  const totalXPGained = stats.xpGained
+  const rankColor = getRankColor(user?.rank ?? 'F')
+  const totalXPGained = stats?.xpGained ?? 0
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -274,10 +274,10 @@ function DashboardContent() {
       <main className="overflow-y-auto">
         {/* Header Section */}
         <EnhancedHeaderV2
-          userName={user.name}
-          rank={user.rank ?? ''}
-          level={user.level ?? 1}
-          statPoints={user.statPoints ?? 0}
+          userName={user?.name ?? 'Hunter'}
+          rank={user?.rank ?? 'F'}
+          level={user?.level ?? 1}
+          statPoints={user?.statPoints ?? 0}
           xpToday={xpGainedToday}
           totalXp={totalXPGained}
         />

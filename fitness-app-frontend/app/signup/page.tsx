@@ -71,8 +71,6 @@ export default function SignupPage() {
   const [gymAccess, setGymAccess] = useState('')
   const [equipment, setEquipment] = useState<string[]>([])
   const [motivationLevel, setMotivationLevel] = useState('')
-  const [walletAddress, setWalletAddress] = useState('')
-  const [isConnectingWallet, setIsConnectingWallet] = useState(false)
 
   // Form state
   const [step, setStep] = useState(1)
@@ -84,32 +82,6 @@ export default function SignupPage() {
   const medicalOptions = ['None', 'Diabetes', 'High Blood Pressure', 'Heart Condition', 'Asthma', 'Arthritis', 'Back Pain', 'Other']
   const dietOptions = ['None', 'Vegetarian', 'Vegan', 'Keto', 'Paleo', 'Low Carb', 'High Protein', 'Gluten Free']
   const equipmentOptions = ['Dumbbells', 'Barbell', 'Resistance Bands', 'Yoga Mat', 'Treadmill', 'Stationary Bike', 'Pull-up Bar', 'Kettlebells', 'None']
-
-  // Connect MetaMask
-  const connectMetaMask = async () => {
-    setIsConnectingWallet(true)
-    try {
-      if (!window.ethereum) {
-        setError('MetaMask is not installed. Please install MetaMask extension.')
-        setIsConnectingWallet(false)
-        return
-      }
-
-      const accounts = await window.ethereum.request({
-        method: 'eth_requestAccounts',
-      })
-
-      if (accounts && accounts.length > 0) {
-        setWalletAddress(accounts[0])
-        setError('')
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to connect MetaMask')
-    }
-    setIsConnectingWallet(false)
-  }
-
-  const disconnectWallet = () => setWalletAddress('')
 
   // Toggle functions
   const toggleGoal = (goal: string) => setGoals(prev => prev.includes(goal) ? prev.filter(g => g !== goal) : [...prev, goal])
@@ -220,12 +192,11 @@ export default function SignupPage() {
         sleepHours,
         stressLevel,
         smokingStatus,
-        // Step 5: Preferences & Wallet
+        // Step 5: Preferences
         preferredWorkoutTime,
         gymAccess,
         equipment,
         motivationLevel,
-        walletAddress,
       }
       
       console.log('[Signup Page] Signup data being sent:', {
@@ -961,62 +932,6 @@ export default function SignupPage() {
                     </div>
                   </div>
 
-                  {/* Wallet Connection */}
-                  <div>
-                    <label className="block text-purple-200 text-sm font-bold mb-2 uppercase tracking-wide">
-                      <Wallet className="w-4 h-4 inline mr-2" />
-                      Connect Wallet (Optional)
-                    </label>
-                    
-                    {!walletAddress ? (
-                      <button
-                        type="button"
-                        onClick={connectMetaMask}
-                        disabled={isConnectingWallet}
-                        className="w-full bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white font-black py-3.5 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 uppercase tracking-wider text-sm border border-orange-400/30"
-                        style={{
-                          boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0, 0, 0, 0.5)',
-                          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-                        }}
-                      >
-                        {isConnectingWallet ? (
-                          <>
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            <span>Connecting...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Wallet className="w-5 h-5" />
-                            <span>Connect MetaMask</span>
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      <div className="bg-black/40 border border-green-500/50 rounded-xl p-4"
-                           style={{ backdropFilter: 'blur(10px)' }}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <p className="text-green-400 text-xs font-bold uppercase tracking-wide mb-1">
-                              ✓ Wallet Connected
-                            </p>
-                            <p className="text-purple-200 text-sm font-mono break-all">
-                              {walletAddress}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={disconnectWallet}
-                            className="shrink-0 text-red-400 hover:text-red-300 text-xs font-bold uppercase tracking-wide transition-colors"
-                          >
-                            Disconnect
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    <p className="text-purple-300/50 text-xs mt-2">
-                      Earn rewards and track achievements on the blockchain
-                    </p>
-                  </div>
                 </div>
               )}
 

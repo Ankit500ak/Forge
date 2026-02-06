@@ -17,7 +17,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   useEffect(() => {
     setMounted(true)
     // Check if there's a token in localStorage
-    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
     setHasToken(!!token)
   }, [])
 

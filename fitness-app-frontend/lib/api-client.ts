@@ -60,12 +60,11 @@ export const authApi = {
     sleepHours?: string
     stressLevel?: string
     smokingStatus?: string
-    // Preferences & Wallet
+    // Preferences
     preferredWorkoutTime?: string
     gymAccess?: string
     equipment?: string[]
     motivationLevel?: string
-    walletAddress?: string
   }) =>
     apiClient.post('/api/auth/register', data),
   login: (data: { email: string; password: string }) =>

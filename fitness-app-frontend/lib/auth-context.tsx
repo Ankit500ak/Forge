@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import axios from 'axios'
 
 interface User {
+  statPoints: number
+  rank: string
   id: string
   email: string
   name?: string
@@ -45,12 +47,11 @@ interface SignupData {
   stressLevel?: string
   smokingStatus?: string
   
-  // Step 5: Preferences & Wallet
+  // Step 5: Preferences
   preferredWorkoutTime?: string
   gymAccess?: string
   equipment?: string[]
   motivationLevel?: string
-  walletAddress?: string
 }
 
 interface AuthContextType {
@@ -58,6 +59,7 @@ interface AuthContextType {
   token: string | null
   isLoading: boolean
   error: string | null
+  isAuthenticated: boolean
   login: (email: string, password: string) => Promise<any>
   signup: (name: string, email: string, password: string, additionalData?: Partial<SignupData>) => Promise<any>
   register: (email: string, password: string, name?: string, age?: number, gender?: string, fitness_level?: string) => Promise<any>
@@ -432,6 +434,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     token,
     isLoading,
     error,
+    isAuthenticated: !!user && !!token,
     login,
     signup,
     register,
