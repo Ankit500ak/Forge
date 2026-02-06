@@ -149,32 +149,21 @@ const initializeUserGameData = async (userId) => {
       .maybeSingle();
 
     if (!existingProg) {
+      // Insert with only essential fields to avoid column mismatch errors
       const { error: progError } = await supabase
         .from('user_progression')
         .insert({
           user_id: userId,
           level: 1,
-          stat_points: 0,
-          xp_today: 0,
-          rank: 'F',
           total_xp: 0,
-          weekly_xp: 0,
-          monthly_xp: 0,
           experience_points: 0,
-          next_level_percent: 0,
-          current_streak: 0,
-          longest_streak: 0,
-          tasks_completed: 0,
-          prestige: 0,
-          joined_date: new Date().toISOString(),
-          last_active: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
 
       if (progError && progError.code !== '23505') {
         console.error('[Auth] ⚠️ Error creating progression:', progError);
-      } else {
+      } else if (!progError) {
         console.log('[Auth] ✅ Progression created');
       }
     }
@@ -187,42 +176,18 @@ const initializeUserGameData = async (userId) => {
       .maybeSingle();
 
     if (!existingStats) {
+      // Insert with only essential fields
       const { error: statsError } = await supabase
         .from('user_stats')
         .insert({
           user_id: userId,
-          user_id_ref: userId,
-          bench_press: 0,
-          deadlift: 0,
-          squat: 0,
-          total_lifted: 0,
-          strength_goal: 0,
-          distance_run_km: 0,
-          calories_burned: 0,
-          cardio_sessions: 0,
-          longest_run_km: 0,
-          strength: 0,
-          speed: 0,
-          endurance: 0,
-          agility: 0,
-          power: 0,
-          recovery: 0,
-          reflex_time: 0,
-          flexibility: 0,
-          bmi: 0,
-          resting_heart_rate: 0,
-          sleep_quality: 0,
-          stress_level: 0,
-          health: 10,
-          base_stats: 10,
-          experience_points: 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
 
       if (statsError && statsError.code !== '23505') {
         console.error('[Auth] ⚠️ Error creating stats:', statsError);
-      } else {
+      } else if (!statsError) {
         console.log('[Auth] ✅ Stats created');
       }
     }
@@ -541,27 +506,38 @@ export const login = async (req, res) => {
     const authUser = loginData.user;
     console.log('[Auth] User authenticated:', authUser.id);
 
-    let user;
-    try {
-      // Ensure user profile exists (creates if missing)
-      user = await ensureUserProfile(
-        authUser.id, 
-        authUser.email, 
-        authUser.user_metadata?.name
-      );
-    } catch (profileError) {
-      console.error('[Auth] Failed to ensure user profile:', profileError);
+    // Check if user profile exists (DO NOT auto-create)
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, email, name, created_at')
+      .eq('id', authUser.id)
+      .maybeSingle();
+
+    if (userError) {
+      console.error('[Auth] Error fetching user profile:', userError);
       return res.status(500).json({ 
         message: 'Failed to fetch user profile', 
-        error: profileError.message 
+        error: userError.message 
       });
     }
 
+    // If user profile doesn't exist, redirect to registration
+    if (!user) {
+      console.warn('[Auth] ⚠️ User authenticated but profile not found:', authUser.id);
+      console.warn('[Auth] Redirecting to registration...');
+      
+      return res.status(403).json({ 
+        message: 'Profile not found. Please complete registration.',
+        error: 'ProfileNotFound',
+        requiresRegistration: true,
+        email: authUser.email
+      });
+    }
+
+    console.log('[Auth] ✅ User profile found:', user.id);
+
     // Get fitness profile (non-blocking, returns null if not found)
     const fitness = await getFitnessProfile(user.id);
-
-    // Ensure game data exists (non-blocking)
-    await initializeUserGameData(user.id);
 
     // Generate JWT token
     const token = generateToken(user.id);
