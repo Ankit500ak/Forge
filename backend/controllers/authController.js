@@ -52,8 +52,7 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
     }
 
-    // Hash password
-    const password_hash = await bcrypt.hash(password, 10);
+    // Password hash not needed; Supabase Auth manages passwords
 
     // Insert user using Supabase Auth and DB
     let userId;
