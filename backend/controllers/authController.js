@@ -400,3 +400,14 @@ export const login = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
+// Supabase-compatible logout export
+export const logout = async (req, res) => {
+  try {
+    // For Supabase, logout is usually handled client-side.
+    // Here, just instruct the client to remove their token.
+    res.json({ message: 'Logout successful' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
