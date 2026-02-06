@@ -826,7 +826,7 @@ export const login = async (req, res) => {
 
     // Check if account is active
     if (userProfile.is_active === false) {
-      console.error('[Login] ❌ Account is inactive:', data.user.id);
+      console.error('[Login] ❌ Account is inactive:', userProfile.id);
       return res.status(403).json({ 
         message: 'Your account has been deactivated. Please contact support.',
         error: 'AccountInactive' 
@@ -835,8 +835,9 @@ export const login = async (req, res) => {
 
     console.log('[Login] ✅ User profile validated');
 
-    // Generate custom JWT token
-    const token = generateToken(data.user.id);
+    // Generate custom JWT token using DATABASE user ID (not auth ID)
+    // This is critical - the token must contain the user ID from the database, not from Supabase Auth
+    const token = generateToken(userProfile.id);
 
     console.log(`[Login] 🎉 Login successful for: ${email}`);
 
