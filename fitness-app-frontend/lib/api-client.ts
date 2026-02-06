@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+// API URL construction: append /api to base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:5000/api';
 
 const apiClient = axios.create({

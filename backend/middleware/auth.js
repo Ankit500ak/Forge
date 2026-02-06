@@ -371,3 +371,96 @@ export const validateAuthConfig = () => {
   console.log('[Auth] ✅ Authentication configuration validated');
   return true;
 };
+
+/**
+ * Ensure user records exist - creates them if missing
+ * This middleware guarantees user_progression, user_stats, and fitness_profiles exist
+ * Called after authentication to initialize missing records with beginner defaults
+ */
+export const ensureUserRecords = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    
+    if (!userId) {
+      console.log('[EnsureRecords] No user ID, skipping');
+      return next();
+    }
+
+    console.log(`[EnsureRecords] Ensuring records exist for user: ${userId}`);
+
+    // Check if user_progression exists
+    const { data: progression, error: progError } = await supabase
+      .from('user_progression')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!progression && !progError) {
+      console.log('[EnsureRecords] Creating missing user_progression');
+      const { error: createProgError } = await supabase
+        .from('user_progression')
+        .insert({
+          user_id: userId,
+          level: 1,
+          total_xp: 0,
+          current_xp: 0,
+          xp_to_next_level: 100,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      if (createProgError) console.error('[EnsureRecords] Error creating progression:', createProgError.message);
+    }
+
+    // Check if user_stats exists
+    const { data: stats, error: statsError } = await supabase
+      .from('user_stats')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!stats && !statsError) {
+      console.log('[EnsureRecords] Creating missing user_stats');
+      const { error: createStatsError } = await supabase
+        .from('user_stats')
+        .insert({
+          user_id: userId,
+          strength: 0,
+          speed: 0,
+          endurance: 0,
+          agility: 0,
+          power: 0,
+          recovery: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      if (createStatsError) console.error('[EnsureRecords] Error creating stats:', createStatsError.message);
+    }
+
+    // Check if fitness_profiles exists
+    const { data: fitness, error: fitnessError } = await supabase
+      .from('fitness_profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!fitness && !fitnessError) {
+      console.log('[EnsureRecords] Creating missing fitness_profiles');
+      const { error: createFitnessError } = await supabase
+        .from('fitness_profiles')
+        .insert({
+          user_id: userId,
+          fitness_level: 'beginner',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      if (createFitnessError) console.error('[EnsureRecords] Error creating fitness_profiles:', createFitnessError.message);
+    }
+
+    console.log('[EnsureRecords] ✅ User records verified/created');
+    next();
+  } catch (error) {
+    console.error('[EnsureRecords] Error ensuring records:', error.message);
+    // Don't block - continue even if there's an error
+    next();
+  }
+};

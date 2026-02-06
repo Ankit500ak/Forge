@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getRankForXp, RANK_THRESHOLDS } from '../utils/rank.js';
 import { getLevelFromXp, getLevelProgress } from '../utils/level.js';
 import { checkRankUp, getNextRankInfo } from '../utils/rankMonitor.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, ensureUserRecords } from '../middleware/auth.js';
 
 const router = express.Router();
 const supabase = createClient(
@@ -12,7 +12,7 @@ const supabase = createClient(
 );
 
 // Protected route - Get current user
-router.get('/me', authenticate, async (req, res) => {
+router.get('/me', authenticate, ensureUserRecords, async (req, res) => {
   try {
     const userId = req.userId;
 
@@ -103,7 +103,7 @@ router.put('/profile/update', authenticate, async (req, res) => {
 });
 
 // Protected route - Get user's game progression and stats
-router.get('/me/game', authenticate, async (req, res) => {
+router.get('/me/game', authenticate, ensureUserRecords, async (req, res) => {
   try {
     const userId = req.userId;
     console.log(`[Users] Fetching game data for user: ${userId}`);

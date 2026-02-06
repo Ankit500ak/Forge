@@ -8,6 +8,8 @@ import taskRoutes from './routes/tasks.js';
 import debugRoutes from './routes/debug.js';
 import { initXpRolloverService, triggerRollover } from './services/xpRollover.js';
 import { initializeTaskScheduler } from './services/taskScheduler.js';
+
+// Force redeploy - update timestamp
 import { Pool } from 'pg';
 
 dotenv.config();

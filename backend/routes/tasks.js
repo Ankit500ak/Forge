@@ -8,13 +8,13 @@ import {
   generateMLTaskForUser,
   generateMLTasksBatch
 } from '../controllers/taskController.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, ensureUserRecords } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Protected routes - all require authentication
-router.get('/today', authenticate, getTodayTasks);
-router.get('/', authenticate, getUserTasks);
+router.get('/today', authenticate, ensureUserRecords, getTodayTasks);
+router.get('/', authenticate, ensureUserRecords, getUserTasks);
 router.post('/complete', authenticate, completeTask);
 router.post('/', authenticate, createTask);
 router.delete('/:taskId', authenticate, deleteTask);
