@@ -620,28 +620,6 @@ router.post('/me/rank-up', authenticate, async (req, res) => {
     };
     const minStatRequired = statReqs[currentRank] || 0;
     const allStatsMinMet = Object.values(stats).every(v => (parseInt(v) || 0) >= minStatRequired);
-
-    if (!meetsXpRequirement || !meetsTaskRequirement || !meetsStreakRequirement || !allStatsMinMet) {
-      return res.status(400).json({
-        message: 'Rank-up requirements not met',
-        requirements: {
-          xp: { required: requirements.xpRequired, current: xpProgress, met: meetsXpRequirement },
-          tasks: { required: requirements.tasksRequired, current: tasksCompleted, met: meetsTaskRequirement },
-          streak: { required: requirements.streakRequired, current: currentStreak, met: meetsStreakRequirement },
-          stats: { required: minStatRequired, met: allStatsMinMet },
-        }
-      });
-    }
-
-    // Update rank in progression
-    const { rows: updateRows } = await pool.query(
-      'UPDATE user_progression SET rank = $1 WHERE user_id = $2 RETURNING *',
-      [nextRank, userId]
-    );
-
-    try {
-      const userId = req.userId;
-
       const { data: progression, error: progError } = await supabase
         .from('user_progression')
         .select('*')
@@ -664,7 +642,7 @@ router.post('/me/rank-up', authenticate, async (req, res) => {
       // Get current rank from XP
       const currentRank = getRankForXp(progression.total_xp || 0);
       const currentLevel = progression.level || 1;
-
+    
       // Rank order
       const RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'A+', 'S', 'S+', 'SS+'];
       const currentRankIndex = RANK_ORDER.indexOf(currentRank);
@@ -709,6 +687,36 @@ router.post('/me/rank-up', authenticate, async (req, res) => {
       const meetsXpRequirement = xpProgress >= requirements.xpRequired;
       const meetsTaskRequirement = tasksCompleted >= requirements.tasksRequired;
       const meetsStreakRequirement = currentStreak >= requirements.streakRequired;
+
+      // Check stat requirements (all stats must meet minimum)
+      const statReqs = {
+        F: 10, E: 20, D: 35, C: 30, B: 50, A: 70, 'A+': 85, S: 100
+      };
+      const minStatRequired = statReqs[currentRank] || 0;
+      const allStatsMinMet = Object.values(statsObj).every(v => (parseInt(v) || 0) >= minStatRequired);
+
+      if (!meetsXpRequirement || !meetsTaskRequirement || !meetsStreakRequirement || !allStatsMinMet) {
+        return res.status(400).json({
+          message: 'Rank-up requirements not met',
+          requirements: {
+            xp: { required: requirements.xpRequired, current: xpProgress, met: meetsXpRequirement },
+            tasks: { required: requirements.tasksRequired, current: tasksCompleted, met: meetsTaskRequirement },
+            streak: { required: requirements.streakRequired, current: currentStreak, met: meetsStreakRequirement },
+            stats: { required: minStatRequired, met: allStatsMinMet },
+          }
+        });
+      }
+
+      // Update rank in progression
+      const { data: updated, error: updateError } = await supabase
+        .from('user_progression')
+        .update({ rank: nextRank })
+        .eq('user_id', userId)
+        .select('*')
+        .single();
+      if (updateError) {
+        return res.status(500).json({ message: 'Server error', error: updateError.message });
+      }
 
           const { data: updated, error: updateError } = await supabase
             .from('user_progression')
