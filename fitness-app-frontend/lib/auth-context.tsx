@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  // API base URL - FIXED: Remove /api from base URL since we add it in the endpoints
+  // API base URL (no /api, endpoints add it)
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
   // Load token and user from localStorage on mount
@@ -193,7 +193,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('[Auth Context] Logging in:', email)
       console.log('[Auth Context] API endpoint:', `${API_BASE}/api/auth/login`)
-      
       const response = await axios.post(`${API_BASE}/api/auth/login`, {
         email,
         password
@@ -263,7 +262,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password: '***',
         ...additionalData 
       })
-      
       // Combine basic data with additional data
       const signupData = {
         name,
@@ -271,7 +269,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         ...additionalData
       }
-      
       const response = await axios.post(`${API_BASE}/api/auth/register`, signupData)
 
       const { user: userData, token: authToken } = response.data
@@ -325,7 +322,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('[Auth Context] Registering:', email)
       console.log('[Auth Context] API endpoint:', `${API_BASE}/api/auth/register`)
-      
       const response = await axios.post(`${API_BASE}/api/auth/register`, {
         email,
         password,
