@@ -679,7 +679,7 @@ export default function GameStats() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await apiClient.get('/api/users/me/game')
+      const response = await apiClient.get('/users/me/game')
       const data = response.data?.progression || null
       const metadata = response.data?.rankMetadata || null
 

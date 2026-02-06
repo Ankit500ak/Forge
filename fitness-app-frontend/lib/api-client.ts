@@ -66,17 +66,17 @@ export const authApi = {
     equipment?: string[]
     motivationLevel?: string
   }) =>
-    apiClient.post('/api/auth/register', data),
+    apiClient.post('/auth/register', data),
   login: (data: { email: string; password: string }) =>
-    apiClient.post('/api/auth/login', data),
-  logout: () => apiClient.post('/api/auth/logout'),
+    apiClient.post('/auth/login', data),
+  logout: () => apiClient.post('/auth/logout'),
 };
 
 // Task API endpoints
 export const taskApi = {
   // Get today's tasks
   getTodayTasks: () =>
-    apiClient.get('/api/tasks/today'),
+    apiClient.get('/tasks/today'),
   
   // Get all user tasks
   getUserTasks: () =>
@@ -114,15 +114,15 @@ export const taskApi = {
 export const userApi = {
   // Get user profile
   getProfile: () =>
-    apiClient.get('/users/profile'),
+    apiClient.get('/users/me'),
   
   // Get user stats
   getStats: () =>
-    apiClient.get('/users/stats'),
+    apiClient.get('/users/me'),
   
   // Update user profile
   updateProfile: (data: Record<string, any>) =>
-    apiClient.put('/users/profile', data),
+    apiClient.put('/users/profile/update', data),
 };
 
 // Rank/Leaderboard API endpoints
