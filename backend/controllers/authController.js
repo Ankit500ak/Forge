@@ -13,7 +13,19 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 // Use SERVICE_ROLE_KEY for server-side operations (bypasses RLS)
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    },
+    // Ensure we're using service role privileges
+    global: {
+      headers: {
+        'X-Client-Info': 'supabase-js-node'
+      }
+    }
+  }
 );
 
 /**
@@ -25,7 +37,7 @@ const supabase = createClient(
  */
 const ensureUserProfile = async (userId, email, name = null) => {
   try {
-    // Try to get existing user
+    // Try to get existing user by ID
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
       .select('id, email, name, created_at')
@@ -37,10 +49,33 @@ const ensureUserProfile = async (userId, email, name = null) => {
       throw new Error(`Failed to fetch user profile: ${fetchError.message}`);
     }
 
-    // If user exists, return it
+    // If user exists with this ID, return it
     if (existingUser) {
       console.log('[Auth] ✅ User profile found:', userId);
       return existingUser;
+    }
+
+    // Check if a user exists with this email but different ID
+    const { data: emailUser, error: emailFetchError } = await supabase
+      .from('users')
+      .select('id, email, name, created_at')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (emailFetchError) {
+      console.error('[Auth] Error checking email:', emailFetchError);
+      throw new Error(`Failed to check email: ${emailFetchError.message}`);
+    }
+
+    if (emailUser) {
+      // User exists with this email but different ID
+      // This shouldn't happen in normal flow, but handle it gracefully
+      console.warn('[Auth] ⚠️ User exists with email but different ID');
+      console.warn('[Auth] Expected ID:', userId, 'Found ID:', emailUser.id);
+      
+      // Return the existing user by email
+      // The auth system and DB are out of sync - this is a data issue
+      return emailUser;
     }
 
     // User doesn't exist, create it
@@ -62,6 +97,7 @@ const ensureUserProfile = async (userId, email, name = null) => {
       
       // Handle race condition - user might have been created by another request
       if (createError.code === '23505') {
+        // Duplicate key - try to fetch by ID first
         const { data: retryUser } = await supabase
           .from('users')
           .select('id, email, name, created_at')
@@ -69,8 +105,20 @@ const ensureUserProfile = async (userId, email, name = null) => {
           .maybeSingle();
         
         if (retryUser) {
-          console.log('[Auth] ✅ User profile found on retry:', userId);
+          console.log('[Auth] ✅ User profile found on retry (by ID):', userId);
           return retryUser;
+        }
+
+        // If not found by ID, try by email
+        const { data: retryEmailUser } = await supabase
+          .from('users')
+          .select('id, email, name, created_at')
+          .eq('email', email)
+          .maybeSingle();
+        
+        if (retryEmailUser) {
+          console.log('[Auth] ✅ User profile found on retry (by email):', email);
+          return retryEmailUser;
         }
       }
       
