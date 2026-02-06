@@ -129,6 +129,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong', error: err.message });
 });
 
+app.get('/', (req, res) => {
+  res.send('API server is running');
+});
+
 const PORT = process.env.PORT || 5000;
 // Bind to 0.0.0.0 so the server is reachable from other machines on the LAN
 const HOST = process.env.HOST || '0.0.0.0';

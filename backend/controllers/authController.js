@@ -348,7 +348,7 @@ async function checkProfileCompletion(userId) {
 /**
  * Initialize all required user records
  */
-async function initializeUserRecords(userId) {
+async function initializeUserRecords(userId, additionalData = {}) {
   const results = {
     stats: null,
     progression: null,
@@ -405,15 +405,39 @@ async function initializeUserRecords(userId) {
       console.log('[Initialize] ✅ user_progression created');
     }
 
-    // Initialize fitness_profiles
+    // Initialize fitness_profiles with all additional data
+    const fitnessProfileData = {
+      user_id: userId,
+      fitness_level: additionalData.fitnessLevel || additionalData.fitness_level || 'beginner',
+      // Personal metrics
+      height: additionalData.height || null,
+      weight: additionalData.weight || null,
+      target_weight: additionalData.targetWeight || null,
+      // Fitness profile
+      goals: additionalData.goals || [],
+      activity_level: additionalData.activityLevel || null,
+      preferred_workouts: additionalData.preferredWorkouts || [],
+      workout_frequency: additionalData.workoutFrequency || null,
+      workout_duration: additionalData.workoutDuration || null,
+      // Health & lifestyle
+      medical_conditions: additionalData.medicalConditions || [],
+      injuries: additionalData.injuries || null,
+      dietary_preferences: additionalData.dietaryPreferences || [],
+      sleep_hours: additionalData.sleepHours || null,
+      stress_level: additionalData.stressLevel || null,
+      smoking_status: additionalData.smokingStatus || null,
+      // Preferences
+      preferred_workout_time: additionalData.preferredWorkoutTime || null,
+      gym_access: additionalData.gymAccess || null,
+      equipment: additionalData.equipment || [],
+      motivation_level: additionalData.motivationLevel || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
     const { data: fitness, error: fitnessError } = await supabase
       .from('fitness_profiles')
-      .upsert({
-        user_id: userId,
-        fitness_level: 'beginner',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' })
+      .upsert(fitnessProfileData, { onConflict: 'user_id' })
       .select()
       .single();
 
@@ -422,7 +446,7 @@ async function initializeUserRecords(userId) {
       results.errors.push({ table: 'fitness_profiles', error: fitnessError.message });
     } else {
       results.fitness = fitness;
-      console.log('[Initialize] ✅ fitness_profiles created');
+      console.log('[Initialize] ✅ fitness_profiles created with additional data');
     }
 
     return results;
@@ -440,12 +464,52 @@ async function initializeUserRecords(userId) {
 /**
  * Register a new user
  * POST /api/auth/register
- * Body: { email, password, name?, age?, gender?, fitness_level? }
+ * Body: { email, password, name, age, gender, fitness_level, ... }
  */
 export const register = async (req, res) => {
-  const { email, password, name, age, gender, fitness_level } = req.body;
+  const { 
+    email, 
+    password, 
+    name, 
+    age, 
+    gender, 
+    fitness_level,
+    // Additional personal metrics
+    height,
+    weight,
+    targetWeight,
+    // Fitness profile
+    goals,
+    activityLevel,
+    preferredWorkouts,
+    workoutFrequency,
+    workoutDuration,
+    // Health & lifestyle
+    medicalConditions,
+    injuries,
+    dietaryPreferences,
+    sleepHours,
+    stressLevel,
+    smokingStatus,
+    // Preferences & wallet
+    preferredWorkoutTime,
+    gymAccess,
+    equipment,
+    motivationLevel,
+    walletAddress
+  } = req.body;
   
   console.log('[Register] Registration attempt for email:', email);
+  console.log('[Register] Additional data received:', {
+    age, 
+    gender, 
+    height, 
+    weight, 
+    fitnessLevel: fitness_level,
+    goals: goals?.length || 0,
+    preferredWorkouts: preferredWorkouts?.length || 0,
+    walletAddress: walletAddress ? 'provided' : 'not provided'
+  });
   
   // Validate input
   if (!email || !password) {
@@ -531,7 +595,7 @@ export const register = async (req, res) => {
 
     console.log('[Register] ✅ User created in Supabase Auth:', authData.user.id);
 
-    // Create user profile in your users table
+    // Create user profile in your users table with all available data
     console.log('[Register] Creating user profile in database...');
     const { data: userData, error: userError } = await supabase
       .from('users')
@@ -543,6 +607,7 @@ export const register = async (req, res) => {
           age: age || null,
           gender: gender || null,
           fitness_level: fitness_level || 'beginner',
+          wallet_address: walletAddress || null,
           role: 'user',
           is_active: true,
           level: 1,
@@ -573,12 +638,37 @@ export const register = async (req, res) => {
 
     console.log(`[Register] ✅ User profile created successfully: ${authData.user.id}`);
 
-    // Initialize all required records
+    // Prepare additional data for fitness_profiles
+    const additionalData = {
+      fitnessLevel: fitness_level,
+      height,
+      weight,
+      targetWeight,
+      goals,
+      activityLevel,
+      preferredWorkouts,
+      workoutFrequency,
+      workoutDuration,
+      medicalConditions,
+      injuries,
+      dietaryPreferences,
+      sleepHours,
+      stressLevel,
+      smokingStatus,
+      preferredWorkoutTime,
+      gymAccess,
+      equipment,
+      motivationLevel
+    };
+
+    // Initialize all required records with additional data
     console.log('[Register] Initializing user records...');
-    const initResults = await initializeUserRecords(authData.user.id);
+    const initResults = await initializeUserRecords(authData.user.id, additionalData);
 
     if (initResults.errors.length > 0) {
       console.warn('[Register] ⚠️ Some records failed to initialize:', initResults.errors);
+    } else {
+      console.log('[Register] ✅ All user records initialized successfully');
     }
 
     // Generate custom JWT token
@@ -596,6 +686,7 @@ export const register = async (req, res) => {
         age: age || null,
         gender: gender || null,
         fitness_level: fitness_level || 'beginner',
+        wallet_address: walletAddress || null,
         role: 'user',
         level: 1,
         total_xp: 0
@@ -946,10 +1037,6 @@ export const completeProfile = async (req, res) => {
     });
   }
 };
-
-// ... (rest of the functions from the previous version: refresh, forgotPassword, resetPassword, 
-// changePassword, updateProfile, deleteAccount, generateToken, verifyToken, decodeToken, 
-// refreshToken, validateAuthConfig)
 
 /**
  * Refresh JWT token
