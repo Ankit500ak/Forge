@@ -7,13 +7,17 @@ const supabase = createClient(
 
 /**
  * Get user profile with stats
+ * Handles missing data gracefully
  */
 export const getUserProfile = async (req, res) => {
   try {
     const userId = req.userId;
 
     if (!userId) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ 
+        message: 'User not authenticated',
+        error: 'Unauthenticated' 
+      });
     }
 
     console.log(`[Users] Fetching profile for user: ${userId}`);
@@ -23,13 +27,9 @@ export const getUserProfile = async (req, res) => {
       .from('users')
       .select('id, email, name, age, gender, fitness_level, level, total_xp')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (userError) {
-      if (userError.code === 'PGRST116') {
-        console.log(`[Users] User not found: ${userId}`);
-        return res.status(404).json({ message: 'User not found' });
-      }
       console.error('[Users] Error fetching user:', userError);
       return res.status(500).json({ 
         message: 'Failed to fetch user data', 
@@ -38,22 +38,24 @@ export const getUserProfile = async (req, res) => {
     }
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      console.error('[Users] ❌ User not found:', userId);
+      return res.status(404).json({ 
+        message: 'User not found. Please complete registration.',
+        error: 'UserNotFound',
+        requiresRegistration: true
+      });
     }
 
-    // Get user stats (6-stat system)
+    // Get user stats (handle missing gracefully)
     const { data: statsData, error: statsError } = await supabase
       .from('user_stats')
       .select('strength, speed, endurance, agility, power, recovery')
       .eq('user_id', userId)
       .maybeSingle();
 
-    if (statsError) {
+    if (statsError && statsError.code !== 'PGRST116' && statsError.code !== '42501') {
       console.error('[Users] Error fetching stats:', statsError);
-      return res.status(500).json({ 
-        message: 'Failed to fetch user stats', 
-        error: statsError.message 
-      });
+      // Don't fail the request, just log the error
     }
 
     const stats = statsData || {
@@ -86,7 +88,8 @@ export const getUserProfile = async (req, res) => {
         agility: parseInt(stats.agility) || 0,
         power: parseInt(stats.power) || 0,
         recovery: parseInt(stats.recovery) || 0
-      }
+      },
+      hasStats: !!statsData
     });
   } catch (error) {
     console.error('[Users] Error fetching profile:', error.message);
@@ -100,13 +103,17 @@ export const getUserProfile = async (req, res) => {
 
 /**
  * Get all user stats
+ * Handles missing data gracefully
  */
 export const getUserStats = async (req, res) => {
   try {
     const userId = req.userId;
 
     if (!userId) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ 
+        message: 'User not authenticated',
+        error: 'Unauthenticated' 
+      });
     }
 
     console.log(`[Users] Fetching stats for user: ${userId}`);
@@ -115,13 +122,9 @@ export const getUserStats = async (req, res) => {
       .from('user_stats')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        console.log(`[Users] Stats not found for user: ${userId}`);
-        return res.status(404).json({ message: 'Stats not found' });
-      }
+    if (error && error.code !== 'PGRST116' && error.code !== '42501') {
       console.error('[Users] Error fetching stats:', error);
       return res.status(500).json({ 
         message: 'Failed to fetch stats', 
@@ -130,7 +133,35 @@ export const getUserStats = async (req, res) => {
     }
 
     if (!stats) {
-      return res.status(404).json({ message: 'Stats not found' });
+      console.log(`[Users] ⚠️ Stats not found for user: ${userId} - returning defaults`);
+      
+      // Return default stats instead of 404
+      return res.json({
+        message: 'User stats retrieved (defaults)',
+        stats: {
+          strength: 0,
+          speed: 0,
+          endurance: 0,
+          agility: 0,
+          power: 0,
+          recovery: 0,
+          bench_press: 0,
+          deadlift: 0,
+          squat: 0,
+          total_lifted: 0,
+          distance_run_km: 0,
+          calories_burned: 0,
+          cardio_sessions: 0,
+          longest_run_km: 0,
+          flexibility: 0,
+          bmi: 0,
+          resting_heart_rate: 0,
+          sleep_quality: 0,
+          stress_level: 0
+        },
+        initialized: false,
+        requiresInitialization: true
+      });
     }
 
     console.log(`[Users] ✅ Stats fetched for user: ${userId}`);
@@ -144,7 +175,6 @@ export const getUserStats = async (req, res) => {
         agility: parseInt(stats.agility) || 0,
         power: parseInt(stats.power) || 0,
         recovery: parseInt(stats.recovery) || 0,
-        // Include additional stats if they exist
         bench_press: parseInt(stats.bench_press) || 0,
         deadlift: parseInt(stats.deadlift) || 0,
         squat: parseInt(stats.squat) || 0,
@@ -158,7 +188,8 @@ export const getUserStats = async (req, res) => {
         resting_heart_rate: parseInt(stats.resting_heart_rate) || 0,
         sleep_quality: parseInt(stats.sleep_quality) || 0,
         stress_level: parseInt(stats.stress_level) || 0
-      }
+      },
+      initialized: true
     });
   } catch (error) {
     console.error('[Users] Error fetching stats:', error.message);
@@ -179,12 +210,15 @@ export const updateUserStats = async (req, res) => {
     const statsUpdate = req.body;
 
     if (!userId) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ 
+        message: 'User not authenticated',
+        error: 'Unauthenticated' 
+      });
     }
 
     console.log(`[Users] Updating stats for user: ${userId}`);
 
-    // Whitelist of valid stat columns (6-stat system + additional fitness metrics)
+    // Whitelist of valid stat columns
     const validStats = [
       'strength', 'speed', 'endurance', 'agility', 'power', 'recovery',
       'bench_press', 'deadlift', 'squat', 'total_lifted',
@@ -203,10 +237,12 @@ export const updateUserStats = async (req, res) => {
     }
 
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ message: 'No valid stats to update' });
+      return res.status(400).json({ 
+        message: 'No valid stats to update',
+        error: 'NoValidFields' 
+      });
     }
 
-    // Add updated_at timestamp
     updateData.updated_at = new Date().toISOString();
 
     // Check if stats row exists
@@ -216,7 +252,7 @@ export const updateUserStats = async (req, res) => {
       .eq('user_id', userId)
       .maybeSingle();
 
-    if (checkError) {
+    if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42501') {
       console.error('[Users] Error checking stats:', checkError);
       return res.status(500).json({ 
         message: 'Failed to check user stats', 
@@ -239,6 +275,16 @@ export const updateUserStats = async (req, res) => {
 
       if (error) {
         console.error('[Users] Error creating stats:', error);
+        
+        // Handle permission errors gracefully
+        if (error.code === '42501') {
+          return res.status(403).json({ 
+            message: 'Permission denied. Please contact support.',
+            error: 'PermissionDenied',
+            requiresSupport: true
+          });
+        }
+        
         return res.status(500).json({ 
           message: 'Failed to create user stats', 
           error: error.message 
@@ -256,6 +302,16 @@ export const updateUserStats = async (req, res) => {
 
       if (error) {
         console.error('[Users] Error updating stats:', error);
+        
+        // Handle permission errors gracefully
+        if (error.code === '42501') {
+          return res.status(403).json({ 
+            message: 'Permission denied. Please contact support.',
+            error: 'PermissionDenied',
+            requiresSupport: true
+          });
+        }
+        
         return res.status(500).json({ 
           message: 'Failed to update user stats', 
           error: error.message 
@@ -288,7 +344,10 @@ export const initializeUserStats = async (req, res) => {
     const userId = req.userId;
 
     if (!userId) {
-      return res.status(401).json({ message: 'User not authenticated' });
+      return res.status(401).json({ 
+        message: 'User not authenticated',
+        error: 'Unauthenticated' 
+      });
     }
 
     console.log(`[Users] Initializing stats for user: ${userId}`);
@@ -300,7 +359,7 @@ export const initializeUserStats = async (req, res) => {
       .eq('user_id', userId)
       .maybeSingle();
 
-    if (checkError) {
+    if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42501') {
       console.error('[Users] Error checking stats:', checkError);
       return res.status(500).json({ 
         message: 'Failed to check user stats', 
@@ -338,7 +397,6 @@ export const initializeUserStats = async (req, res) => {
       .from('user_stats')
       .insert({
         user_id: userId,
-        user_id_ref: userId,
         strength: 0,
         speed: 0,
         endurance: 0,
@@ -358,9 +416,6 @@ export const initializeUserStats = async (req, res) => {
         resting_heart_rate: 0,
         sleep_quality: 0,
         stress_level: 0,
-        health: 10,
-        base_stats: 10,
-        experience_points: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -369,6 +424,16 @@ export const initializeUserStats = async (req, res) => {
 
     if (createError) {
       console.error('[Users] Error creating stats:', createError);
+      
+      // Handle permission errors gracefully
+      if (createError.code === '42501') {
+        return res.status(403).json({ 
+          message: 'Permission denied. Your profile is incomplete. Please complete registration.',
+          error: 'PermissionDenied',
+          requiresRegistration: true
+        });
+      }
+      
       return res.status(500).json({ 
         message: 'Failed to create user stats', 
         error: createError.message 
@@ -387,6 +452,124 @@ export const initializeUserStats = async (req, res) => {
     console.error('[Users] Stack trace:', error.stack);
     res.status(500).json({ 
       message: 'Failed to initialize stats', 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * Get user game data (stats + progression)
+ * Handles missing data gracefully with defaults
+ */
+export const getUserGameData = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ 
+        message: 'User not authenticated',
+        error: 'Unauthenticated' 
+      });
+    }
+
+    console.log(`[Users] Fetching game data for user: ${userId}`);
+
+    // Fetch all data in parallel
+    const [userResult, statsResult, progressionResult] = await Promise.all([
+      supabase
+        .from('users')
+        .select('id, email, name, level, total_xp')
+        .eq('id', userId)
+        .maybeSingle(),
+      
+      supabase
+        .from('user_stats')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      
+      supabase
+        .from('user_progression')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle()
+    ]);
+
+    // Check for user
+    if (userResult.error) {
+      console.error('[Users] Error fetching user:', userResult.error);
+      return res.status(500).json({ 
+        message: 'Failed to fetch user data', 
+        error: userResult.error.message 
+      });
+    }
+
+    if (!userResult.data) {
+      console.error('[Users] ❌ User not found:', userId);
+      return res.status(404).json({ 
+        message: 'User not found. Please complete registration.',
+        error: 'UserNotFound',
+        requiresRegistration: true
+      });
+    }
+
+    const user = userResult.data;
+
+    // Handle stats (use defaults if missing)
+    const stats = statsResult.data || {
+      strength: 0,
+      speed: 0,
+      endurance: 0,
+      agility: 0,
+      power: 0,
+      recovery: 0
+    };
+
+    // Handle progression (use defaults if missing)
+    const progression = progressionResult.data || {
+      level: 1,
+      total_xp: 0,
+      current_xp: 0,
+      xp_to_next_level: 100
+    };
+
+    const missingData = [];
+    if (!statsResult.data) missingData.push('stats');
+    if (!progressionResult.data) missingData.push('progression');
+
+    console.log(`[Users] ✅ Game data fetched for user: ${userId}${missingData.length > 0 ? ` (missing: ${missingData.join(', ')})` : ''}`);
+
+    res.json({
+      message: 'User game data retrieved',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        level: user.level || progression.level || 1,
+        total_xp: user.total_xp || progression.total_xp || 0
+      },
+      stats: {
+        strength: parseInt(stats.strength) || 0,
+        speed: parseInt(stats.speed) || 0,
+        endurance: parseInt(stats.endurance) || 0,
+        agility: parseInt(stats.agility) || 0,
+        power: parseInt(stats.power) || 0,
+        recovery: parseInt(stats.recovery) || 0
+      },
+      progression: {
+        level: progression.level || 1,
+        total_xp: progression.total_xp || 0,
+        current_xp: progression.current_xp || 0,
+        xp_to_next_level: progression.xp_to_next_level || 100
+      },
+      dataComplete: missingData.length === 0,
+      missingData: missingData
+    });
+  } catch (error) {
+    console.error('[Users] Error fetching game data:', error.message);
+    console.error('[Users] Stack trace:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to fetch game data', 
       error: error.message 
     });
   }
