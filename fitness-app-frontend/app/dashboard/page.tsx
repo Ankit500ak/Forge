@@ -128,7 +128,7 @@ function DashboardContent() {
     // Fetch progression data for rank-up conditions
     const fetchProgressionData = async () => {
       try {
-        const response = await apiClient.get('/api/users/me/game')
+        const response = await apiClient.get('/users/me/game')
         const data = response.data?.progression || null
         if (data) {
           setProgression(data)
