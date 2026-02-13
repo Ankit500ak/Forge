@@ -505,27 +505,42 @@ router.get('/me/global-rank', authenticate, async (req, res) => {
     // Get all users sorted by total_xp (for ranking)
     const { data: allUsers, error } = await supabase
       .from('user_progression')
-      .select('user_id, level, total_xp, users(name)')
+      .select('user_id, level, total_xp')
       .order('total_xp', { ascending: false })
       .order('level', { ascending: false });
 
     if (error) {
-      return res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('[Global Rank] Database error:', error.message, error.code);
+      return res.status(500).json({ 
+        message: 'Failed to fetch rankings', 
+        error: error.message,
+        code: error.code 
+      });
     }
 
     if (!allUsers || allUsers.length === 0) {
-      return res.status(404).json({ message: 'No users found' });
+      console.log('[Global Rank] No users found in rankings');
+      return res.json({
+        message: 'Rankings retrieved',
+        userGlobalRank: 999999,
+        totalPlayers: 0,
+        topPlayers: [],
+        qualifiesForSPlus: false,
+        qualifiesForSSPlus: false,
+      });
     }
 
     // Find current user's rank
     const userRankIndex = allUsers.findIndex(u => u.user_id === userId);
     const userGlobalRank = userRankIndex >= 0 ? userRankIndex + 1 : 999999;
 
+    console.log(`[Global Rank] User ${userId} has global rank: ${userGlobalRank}/${allUsers.length}`);
+
     // Get top 10 for leaderboard display
     const topPlayers = allUsers.slice(0, 10).map((user, index) => ({
       rank: index + 1,
-      name: user.users?.name || 'Anonymous',
-      level: user.level,
+      name: user.user_id === userId ? 'You' : `Player ${index + 1}`,
+      level: user.level || 1,
       xp: parseInt(user.total_xp) || 0,
     }));
 
@@ -538,7 +553,11 @@ router.get('/me/global-rank', authenticate, async (req, res) => {
       qualifiesForSSPlus: userGlobalRank <= 100,
     });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error('[Global Rank] Critical error:', err.message, err.stack);
+    res.status(500).json({ 
+      message: 'Server error',
+      error: err.message 
+    });
   }
 });
 
@@ -547,24 +566,46 @@ router.get('/leaderboard', authenticate, async (req, res) => {
   try {
     const { data: leaderboard, error } = await supabase
       .from('user_progression')
-      .select('user_id, level, total_xp, users(name)')
+      .select('user_id, level, total_xp')
       .order('total_xp', { ascending: false })
       .order('level', { ascending: false });
 
     if (error) {
-      return res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('[Leaderboard] Database error:', error.message, error.code);
+      return res.status(500).json({ 
+        message: 'Failed to fetch leaderboard', 
+        error: error.message,
+        code: error.code 
+      });
     }
 
     if (!leaderboard || leaderboard.length === 0) {
-      return res.status(404).json({ message: 'No users found' });
+      console.log('[Leaderboard] No users found');
+      return res.json({
+        message: 'Leaderboard retrieved',
+        leaderboard: [],
+        totalPlayers: 0,
+      });
     }
+
+    console.log(`[Leaderboard] Retrieved leaderboard with ${leaderboard.length} players`);
 
     res.json({
       message: 'Leaderboard retrieved',
-      leaderboard,
+      leaderboard: leaderboard.map((user, index) => ({
+        rank: index + 1,
+        user_id: user.user_id,
+        level: user.level || 1,
+        total_xp: parseInt(user.total_xp) || 0,
+      })),
+      totalPlayers: leaderboard.length,
     });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error('[Leaderboard] Critical error:', err.message, err.stack);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: err.message 
+    });
   }
 });
 
