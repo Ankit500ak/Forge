@@ -1,20 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { TrendingUp, Award, Target, Zap } from 'lucide-react';
+import apiClient from '@/lib/api-client';
 
 const PowerAnalysisSection = () => {
   const [selectedStat, setSelectedStat] = useState(null);
   const [hoveredStat, setHoveredStat] = useState(null);
+  const [radarData, setRadarData] = useState([
+    { stat: 'Strength', value: 0, description: 'Raw power output', trend: '+0%' },
+    { stat: 'Speed', value: 0, description: 'Movement velocity', trend: '+0%' },
+    { stat: 'Endurance', value: 0, description: 'Stamina capacity', trend: '+0%' },
+    { stat: 'Agility', value: 0, description: 'Quick reflexes', trend: '+0%' },
+    { stat: 'Power', value: 0, description: 'Explosive force', trend: '+0%' },
+    { stat: 'Recovery', value: 0, description: 'Healing rate', trend: '+0%' },
+  ]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Sample data - replace with your actual data
-  const radarData = [
-    { stat: 'Strength', value: 85, description: 'Raw power output', trend: '+5%' },
-    { stat: 'Speed', value: 72, description: 'Movement velocity', trend: '+3%' },
-    { stat: 'Endurance', value: 90, description: 'Stamina capacity', trend: '+8%' },
-    { stat: 'Agility', value: 68, description: 'Quick reflexes', trend: '+2%' },
-    { stat: 'Power', value: 82, description: 'Explosive force', trend: '+6%' },
-    { stat: 'Recovery', value: 76, description: 'Healing rate', trend: '+4%' },
-  ];
+  // Fetch real stats from database on mount
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await apiClient.get('/users/me/game');
+        if (response.data?.stats) {
+          const stats = response.data.stats;
+          setRadarData([
+            { stat: 'Strength', value: stats.strength || 0, description: 'Raw power output', trend: '+0%' },
+            { stat: 'Speed', value: stats.speed || 0, description: 'Movement velocity', trend: '+0%' },
+            { stat: 'Endurance', value: stats.endurance || 0, description: 'Stamina capacity', trend: '+0%' },
+            { stat: 'Agility', value: stats.agility || 0, description: 'Quick reflexes', trend: '+0%' },
+            { stat: 'Power', value: stats.power || 0, description: 'Explosive force', trend: '+0%' },
+            { stat: 'Recovery', value: stats.recovery || 0, description: 'Healing rate', trend: '+0%' },
+          ]);
+          console.log('✅ Loaded real stats for Power Analysis:', stats);
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to fetch stats, using defaults:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const overallScore = Math.round(radarData.reduce((acc, curr) => acc + curr.value, 0) / radarData.length);
   
