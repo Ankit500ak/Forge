@@ -11,7 +11,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { SectionCard } from '@/components/dashboard/section-card'
 import { QuestsSection } from '@/components/dashboard/quests-section'
 import { NextLevelSection } from '@/components/dashboard/next-level-section'
-import { HeaderSimple } from '@/components/dashboard/header-simple'
+import { HeaderPro } from '@/components/dashboard/header-pro'
 import GameStats from '@/components/game-stats'
 import PowerAnalysisSection from '@/components/dashboard/power-analysis-section'  
 import MovementTrackingChart from '@/components/dashboard/movementtrackingchart'
@@ -264,6 +264,23 @@ function DashboardContent() {
     return colors[rank] || colors['F']
   }
 
+  const getRankName = (rank: string): string => {
+    const rankNames: Record<string, string> = {
+      'SS+': 'Legendary+',
+      'SS': 'Legendary',
+      'S+': 'Champion+',
+      'S': 'Champion',
+      'A+': 'Master+',
+      'A': 'Master',
+      'B': 'Expert',
+      'C': 'Adept',
+      'D': 'Intermediate',
+      'E': 'Apprentice',
+      'F': 'Novice',
+    }
+    return rankNames[rank] || 'Novice'
+  }
+
   const rankColor = getRankColor(user?.rank ?? 'F')
   const totalXPGained = stats?.xpGained ?? 0
 
@@ -272,10 +289,12 @@ function DashboardContent() {
       <Navigation />
 
       <main className="overflow-y-auto">
-        {/* Header Section - Simplified */}
-        <HeaderSimple
+        {/* Header Section - Premium Design */}
+        <HeaderPro
           userName={user?.name ?? 'Hunter'}
           rank={user?.rank ?? 'F'}
+          level={user?.level ?? 1}
+          rankName={getRankName(user?.rank ?? 'F')}
         />
 
         {/* Game Stats fetched from backend */}
