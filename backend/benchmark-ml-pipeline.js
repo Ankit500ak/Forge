@@ -20,7 +20,10 @@ dotenv.config();
 
 const API_URL = 'http://localhost:5000/api';
 const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL || 'postgresql://postgres:postgres@localhost:5432/fitnessdb'
+  connectionString: process.env.POSTGRES_URL,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
 // Color codes for console output

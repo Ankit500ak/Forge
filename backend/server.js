@@ -24,14 +24,32 @@ const app = express();
 // Initialize database pool for services
 const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
-pool.connect()
-  .then(() => {
-    console.log('✅ Connected to PostgreSQL database!');
-  })
-  .catch((err) => {
-    console.error('❌ Failed to connect to PostgreSQL:', err.message);
-  });
+
+// Test connection with retry logic
+const testDatabaseConnection = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const result = await pool.query('SELECT NOW()');
+      console.log('✅ Connected to PostgreSQL database!');
+      console.log('✅ Database time:', result.rows[0].now);
+      return true;
+    } catch (err) {
+      console.error(`❌ Connection attempt ${i + 1}/${retries} failed:`, err.message);
+      if (i < retries - 1) {
+        console.log(`⏳ Retrying in 2 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  }
+  console.error('❌ Failed to connect to PostgreSQL after all retries');
+  return false;
+};
+
+testDatabaseConnection();
 
 // Initialize XP rollover service
 initXpRolloverService(pool);

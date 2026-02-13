@@ -7,7 +7,10 @@
 import { Pool } from 'pg';
 
 const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL || 'postgresql://postgres:postgres@localhost:5432/fitnessdb'
+  connectionString: process.env.POSTGRES_URL,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
 /**
@@ -166,6 +169,30 @@ const TASK_TEMPLATES = {
 };
 
 /**
+ * Execute query with retry logic for transient failures
+ * @param {Function} queryFn - Function that executes the query
+ * @param {number} maxRetries - Maximum number of retries
+ * @returns {Promise<Object>} Query result
+ */
+async function executeWithRetry(queryFn, maxRetries = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await queryFn();
+    } catch (error) {
+      lastError = error;
+      console.log(`[SimpleGen] Query attempt ${attempt}/${maxRetries} failed:`, error.message);
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`[SimpleGen] ⏳ Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Generate random tasks for a user with difficulty scaling
  * @param {string} userId - User ID
  * @param {string} fitnessLevel - User's fitness level (beginner/intermediate/advanced)
@@ -203,21 +230,23 @@ export async function generateSimpleTasks(userId, fitnessLevel = 'beginner', cou
       // Get realistic stat rewards based on the actual task (not ML - based on real-world exercise effects)
       const statRewards = getStatRewardsForTask(template.title, template.description, category);
 
-      // Store in database
-      const result = await pool.query(
-        `INSERT INTO tasks (user_id, title, description, category, difficulty, xp_reward, duration, stat_rewards, scheduled_date, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE, NOW())
-         RETURNING id, title, category, xp_reward, difficulty, scheduled_date, stat_rewards`,
-        [
-          userId,
-          template.title,
-          template.description,
-          category,
-          scaledDifficulty,
-          scaledXp,
-          template.duration,
-          JSON.stringify(statRewards)
-        ]
+      // Store in database with retry logic
+      const result = await executeWithRetry(() =>
+        pool.query(
+          `INSERT INTO tasks (user_id, title, description, category, difficulty, xp_reward, duration, stat_rewards, scheduled_date, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE, NOW())
+           RETURNING id, title, category, xp_reward, difficulty, scheduled_date, stat_rewards`,
+          [
+            userId,
+            template.title,
+            template.description,
+            category,
+            scaledDifficulty,
+            scaledXp,
+            template.duration,
+            JSON.stringify(statRewards)
+          ]
+        )
       );
 
       generatedTasks.push(result.rows[0]);
