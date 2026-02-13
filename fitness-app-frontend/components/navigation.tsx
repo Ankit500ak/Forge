@@ -2,19 +2,24 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, BarChart3, Backpack, Gift, Trophy, Camera, Dumbbell, Settings, LogOut } from 'lucide-react'
+import { Home, BarChart3, Trophy, Camera, Settings, Menu } from 'lucide-react'
+import { useState } from 'react'
 
 export default function Navigation() {
   const pathname = usePathname()
+  const [showMenu, setShowMenu] = useState(false)
 
-  const navItems = [
+  const mainNavItems = [
     { href: '/dashboard', label: 'Home', icon: Home },
     { href: '/stats', label: 'Stats', icon: BarChart3 },
-    { href: '/inventory', label: 'Gear', icon: Backpack },
-    { href: '/redeem', label: 'Redeem', icon: Gift },
     { href: '/ranking', label: 'Ranks', icon: Trophy },
     { href: '/camera', label: 'Rep Counter', icon: Camera },
-    { href: '/workouts', label: 'Workouts', icon: Dumbbell },
+  ]
+
+  const secondaryNavItems = [
+    { href: '/inventory', label: 'Gear', icon: '🎒' },
+    { href: '/redeem', label: 'Redeem', icon: '🎁' },
+    { href: '/workouts', label: 'Workouts', icon: '💪' },
   ]
 
   return (
@@ -27,7 +32,7 @@ export default function Navigation() {
       }}
     >
       <div className="flex justify-between items-center px-2 py-2 md:px-4 md:py-2 max-w-6xl mx-auto w-full">
-        {navItems.map((item) => {
+        {mainNavItems.map((item) => {
           const isActive = pathname === item.href
           const Icon = item.icon
           return (
@@ -79,6 +84,75 @@ export default function Navigation() {
             </Link>
           )
         })}
+
+        {/* More Menu (Settings) */}
+        <div className="flex-1 relative">
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className={`w-full flex flex-col items-center justify-center py-2 px-1.5 rounded-lg transition-all duration-300 group relative`}
+            style={{
+              backgroundColor: showMenu ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+              border: showMenu ? '1px solid rgba(255, 255, 255, 0.4)' : '1px solid transparent',
+            }}
+          >
+            {/* Glow effect on active */}
+            {showMenu && (
+              <div
+                className="absolute inset-0 rounded-lg blur-lg -z-10"
+                style={{
+                  background: 'radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent)',
+                }}
+              />
+            )}
+
+            {/* Menu Icon */}
+            <Settings
+              size={22}
+              strokeWidth={2}
+              className={`transition-all duration-300 ${showMenu ? 'scale-110' : 'group-hover:scale-105'}`}
+              style={{
+                color: '#ffffff',
+                filter: showMenu
+                  ? 'brightness(2) drop-shadow(0 0 10px rgba(255, 255, 255, 0.8))'
+                  : 'brightness(1.5) grayscale(100%)',
+              }}
+            />
+
+            {/* Active indicator dot */}
+            {showMenu && (
+              <div
+                className="absolute bottom-0.5 w-1 h-1 rounded-full transition-all duration-300"
+                style={{
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 0 6px rgba(255, 255, 255, 0.8)',
+                }}
+              />
+            )}
+
+            {/* Dropdown Menu */}
+            {showMenu && (
+              <div
+                className="absolute bottom-full mb-2 right-0 bg-gray-900 rounded-lg overflow-hidden border border-white/20 shadow-xl min-w-max"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                  backdropFilter: 'blur(10px)',
+                }}
+              >
+                {secondaryNavItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setShowMenu(false)}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-white/80 hover:text-white"
+                  >
+                    <span className="text-lg">{item.icon}</span>
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </button>
+        </div>
       </div>
     </nav>
   )
