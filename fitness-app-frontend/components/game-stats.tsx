@@ -398,10 +398,11 @@ function SoloLevelingRankBadge({ theme }: RankBadgeProps) {
       'A': 'A_rank',
       'A+': 'A+_rank',
       'S': 'S_rank',
-      'S+': 'S+rank',
+      'S+': 'S+_rank',
       'SS+': 'SS+_rank',
     };
-    return `/ranks/${rankMap[rankName] || 'F_rank'}.png`;
+    const filename = rankMap[rankName] || 'F_rank';
+    return `/ranks/${filename}.png`;
   };
 
   return (
