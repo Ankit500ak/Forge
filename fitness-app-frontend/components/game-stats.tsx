@@ -690,7 +690,7 @@ export default function GameStats() {
         setProgression({
           user_id: data.user_id,
           level: data.level,
-          stat_points: data.stat_points,
+          stat_points: data.stat_points || 0,
           xp_today: data.xp_today || 0,
           rank: calculatedRank,
           total_xp: data.total_xp || 0,
@@ -890,10 +890,10 @@ export default function GameStats() {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-            <StatCard label="Level" value={String(progression.level)} icon="⬆️" theme={rankTheme} />
-            <StatCard label="Daily XP" value={String(progression.xp_today)} icon="⚡" theme={rankTheme} />
-            <StatCard label="Total XP" value={progression.total_xp.toLocaleString()} icon="💎" theme={rankTheme} />
-            <StatCard label="Stat Points" value={String(progression.stat_points)} icon="⭐" theme={rankTheme} />
+            <StatCard label="Level" value={String(progression.level || 1)} icon="⬆️" theme={rankTheme} />
+            <StatCard label="Daily XP" value={String(progression.xp_today || 0)} icon="⚡" theme={rankTheme} />
+            <StatCard label="Total XP" value={(progression.total_xp || 0).toLocaleString()} icon="💎" theme={rankTheme} />
+            <StatCard label="Stat Points" value={String(progression.stat_points || 0)} icon="⭐" theme={rankTheme} />
           </div>
 
           {/* Progress Bar */}

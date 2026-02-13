@@ -145,11 +145,17 @@ router.get('/me/game', authenticate, ensureUserRecords, async (req, res) => {
       xp_to_next_level: 100,
       rank: 'Recruit',
       prestige: 0,
+      stat_points: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
 
     console.log(`[Users] Progression data:`, progData ? 'Found' : 'Using defaults');
+
+    // Ensure stat_points exists
+    if (!progression.stat_points) {
+      progression.stat_points = 0;
+    }
 
     // Get stats - use maybeSingle() to handle when record doesn't exist
     const { data: statsData, error: statsError } = await supabase
