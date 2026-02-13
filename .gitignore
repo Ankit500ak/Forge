@@ -94,6 +94,10 @@ dist
 .cache/
 public
 
+# Exception: Include rank images for deployment
+!fitness-app-frontend/public/ranks/
+!fitness-app-frontend/public/ranks/*.png
+
 # Vuepress build output
 .vuepress/dist
 
