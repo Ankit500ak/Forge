@@ -11,7 +11,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { SectionCard } from '@/components/dashboard/section-card'
 import { QuestsSection } from '@/components/dashboard/quests-section'
 import { NextLevelSection } from '@/components/dashboard/next-level-section'
-import { EnhancedHeaderV2 } from '@/components/dashboard/enhanced-header-v2'
+import { HeaderSimple } from '@/components/dashboard/header-simple'
 import GameStats from '@/components/game-stats'
 import PowerAnalysisSection from '@/components/dashboard/power-analysis-section'  
 import MovementTrackingChart from '@/components/dashboard/movementtrackingchart'
@@ -272,14 +272,10 @@ function DashboardContent() {
       <Navigation />
 
       <main className="overflow-y-auto">
-        {/* Header Section */}
-        <EnhancedHeaderV2
+        {/* Header Section - Simplified */}
+        <HeaderSimple
           userName={user?.name ?? 'Hunter'}
           rank={user?.rank ?? 'F'}
-          level={user?.level ?? 1}
-          statPoints={user?.statPoints ?? 0}
-          xpToday={xpGainedToday}
-          totalXp={totalXPGained}
         />
 
         {/* Game Stats fetched from backend */}

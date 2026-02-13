@@ -2,18 +2,26 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, BarChart3, Trophy, Camera, Settings, Menu } from 'lucide-react'
+import { Home, BarChart3, Trophy, Camera, Settings, Menu, Zap } from 'lucide-react'
 import { useState } from 'react'
+import { useAuth } from '@/lib/auth-context'
 
 export default function Navigation() {
   const pathname = usePathname()
   const [showMenu, setShowMenu] = useState(false)
+  const { logout } = useAuth()
 
   const mainNavItems = [
     { href: '/dashboard', label: 'Home', icon: Home },
     { href: '/stats', label: 'Stats', icon: BarChart3 },
     { href: '/ranking', label: 'Ranks', icon: Trophy },
     { href: '/camera', label: 'Rep Counter', icon: Camera },
+  ]
+
+  const settingsItems = [
+    { href: '/settings', label: 'Settings', icon: '⚙️' },
+    { href: '#', label: 'Profile', icon: '👤', onClick: (e: React.MouseEvent) => e.preventDefault() },
+    { label: 'Logout', icon: '🚪', onClick: () => { logout(); setShowMenu(false); } },
   ]
 
   const secondaryNavItems = [
@@ -138,16 +146,49 @@ export default function Navigation() {
                   backdropFilter: 'blur(10px)',
                 }}
               >
+                {/* Secondary Navigation */}
                 {secondaryNavItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setShowMenu(false)}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-white/80 hover:text-white"
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-white/80 hover:text-white border-b border-white/10"
                   >
                     <span className="text-lg">{item.icon}</span>
                     <span className="text-sm font-medium">{item.label}</span>
                   </Link>
+                ))}
+
+                {/* Divider */}
+                <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+                {/* Settings Section */}
+                {settingsItems.map((item, idx) => (
+                  <div key={idx}>
+                    {item.href ? (
+                      <Link
+                        href={item.href}
+                        onClick={() => setShowMenu(false)}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-white/80 hover:text-white"
+                      >
+                        <span className="text-lg">{item.icon}</span>
+                        <span className="text-sm font-medium">{item.label}</span>
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          if (item.onClick) item.onClick(e as any);
+                          else setShowMenu(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-white/80 hover:text-white text-left ${
+                          item.label === 'Logout' ? 'text-red-400 hover:text-red-300' : ''
+                        }`}
+                      >
+                        <span className="text-lg">{item.icon}</span>
+                        <span className="text-sm font-medium">{item.label}</span>
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
