@@ -135,8 +135,21 @@ router.get('/me/game', authenticate, ensureUserRecords, async (req, res) => {
       return res.status(500).json({ message: 'Server error', error: progError.message });
     }
 
-    const progression = progData || null;
-    console.log(`[Users] Progression data:`, progression ? 'Found' : 'Not found');
+    // If no progression, return default values instead of null
+    const progression = progData || {
+      user_id: userId,
+      level: 1,
+      total_xp: 0,
+      current_xp: 0,
+      xp_today: 0,
+      xp_to_next_level: 100,
+      rank: 'Recruit',
+      prestige: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log(`[Users] Progression data:`, progData ? 'Found' : 'Using defaults');
 
     // Get stats - use maybeSingle() to handle when record doesn't exist
     const { data: statsData, error: statsError } = await supabase
@@ -161,7 +174,20 @@ router.get('/me/game', authenticate, ensureUserRecords, async (req, res) => {
       // Don't block if stats error - return what we have
     }
 
-    const stats = statsData || null;
+    // If no stats, return default values instead of null
+    const stats = statsData || {
+      user_id: userId,
+      strength: 0,
+      speed: 0,
+      endurance: 0,
+      agility: 0,
+      power: 0,
+      recovery: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log(`[Users] Using stats:`, statsData ? 'From DB' : 'Defaults');
 
     // Recalculate level from total XP (prestige-aware)
     if (progression) {
@@ -169,8 +195,8 @@ router.get('/me/game', authenticate, ensureUserRecords, async (req, res) => {
       const prestige = Number(progression.prestige || 0);
       const calculatedLevel = getLevelFromXp(totalXp, prestige);
 
-      // Update level in Supabase if changed
-      if (calculatedLevel !== progression.level) {
+      // Update level in Supabase if changed and record exists
+      if (progData && calculatedLevel !== progression.level) {
         await supabase
           .from('user_progression')
           .update({
@@ -237,6 +263,10 @@ router.get('/me/game', authenticate, ensureUserRecords, async (req, res) => {
       progression: progression,
       stats: stats,
       rankMetadata,
+      dataStatus: {
+        progressionFromDB: !!progData,
+        statsFromDB: !!statsData
+      }
     });
   } catch (err) {
     console.error('[Users] Error fetching game data:', err);

@@ -395,9 +395,17 @@ export const ensureUserRecords = async (req, res, next) => {
       .eq('user_id', userId)
       .maybeSingle();
 
+    if (progError) {
+      console.error('[EnsureRecords] ❌ Error checking progression:', progError.message);
+      console.error('[EnsureRecords] Error code:', progError.code);
+      if (progError.code === '42501') {
+        console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING READ - Table: user_progression');
+      }
+    }
+
     if (!progression && !progError) {
       console.log('[EnsureRecords] Creating missing user_progression');
-      const { error: createProgError } = await supabase
+      const { data: newProg, error: createProgError } = await supabase
         .from('user_progression')
         .insert({
           user_id: userId,
@@ -405,10 +413,25 @@ export const ensureUserRecords = async (req, res, next) => {
           total_xp: 0,
           current_xp: 0,
           xp_to_next_level: 100,
+          xp_today: 0,
+          rank: 'Recruit',
+          prestige: 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        });
-      if (createProgError) console.error('[EnsureRecords] Error creating progression:', createProgError.message);
+        })
+        .select();
+      
+      if (createProgError) {
+        console.error('[EnsureRecords] ❌ Error creating progression:', createProgError.message);
+        console.error('[EnsureRecords] Error code:', createProgError.code);
+        if (createProgError.code === '42501') {
+          console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING INSERT - Table: user_progression');
+        }
+      } else {
+        console.log('[EnsureRecords] ✅ Created user_progression:', newProg);
+      }
+    } else {
+      console.log('[EnsureRecords] ✅ user_progression exists');
     }
 
     // Check if user_stats exists
@@ -418,9 +441,16 @@ export const ensureUserRecords = async (req, res, next) => {
       .eq('user_id', userId)
       .maybeSingle();
 
+    if (statsError) {
+      console.error('[EnsureRecords] ❌ Error checking stats:', statsError.message);
+      if (statsError.code === '42501') {
+        console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING READ - Table: user_stats');
+      }
+    }
+
     if (!stats && !statsError) {
       console.log('[EnsureRecords] Creating missing user_stats');
-      const { error: createStatsError } = await supabase
+      const { data: newStats, error: createStatsError } = await supabase
         .from('user_stats')
         .insert({
           user_id: userId,
@@ -432,8 +462,19 @@ export const ensureUserRecords = async (req, res, next) => {
           recovery: 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        });
-      if (createStatsError) console.error('[EnsureRecords] Error creating stats:', createStatsError.message);
+        })
+        .select();
+      
+      if (createStatsError) {
+        console.error('[EnsureRecords] ❌ Error creating stats:', createStatsError.message);
+        if (createStatsError.code === '42501') {
+          console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING INSERT - Table: user_stats');
+        }
+      } else {
+        console.log('[EnsureRecords] ✅ Created user_stats:', newStats);
+      }
+    } else {
+      console.log('[EnsureRecords] ✅ user_stats exists');
     }
 
     // Check if fitness_profiles exists
@@ -443,23 +484,42 @@ export const ensureUserRecords = async (req, res, next) => {
       .eq('user_id', userId)
       .maybeSingle();
 
+    if (fitnessError) {
+      console.error('[EnsureRecords] ❌ Error checking fitness_profiles:', fitnessError.message);
+      if (fitnessError.code === '42501') {
+        console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING READ - Table: fitness_profiles');
+      }
+    }
+
     if (!fitness && !fitnessError) {
       console.log('[EnsureRecords] Creating missing fitness_profiles');
-      const { error: createFitnessError } = await supabase
+      const { data: newFitness, error: createFitnessError } = await supabase
         .from('fitness_profiles')
         .insert({
           user_id: userId,
           fitness_level: 'beginner',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        });
-      if (createFitnessError) console.error('[EnsureRecords] Error creating fitness_profiles:', createFitnessError.message);
+        })
+        .select();
+      
+      if (createFitnessError) {
+        console.error('[EnsureRecords] ❌ Error creating fitness_profiles:', createFitnessError.message);
+        if (createFitnessError.code === '42501') {
+          console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING INSERT - Table: fitness_profiles');
+        }
+      } else {
+        console.log('[EnsureRecords] ✅ Created fitness_profiles:', newFitness);
+      }
+    } else {
+      console.log('[EnsureRecords] ✅ fitness_profiles exists');
     }
 
     console.log('[EnsureRecords] ✅ User records verified/created');
     next();
   } catch (error) {
-    console.error('[EnsureRecords] Error ensuring records:', error.message);
+    console.error('[EnsureRecords] ❌ Critical error ensuring records:', error.message);
+    console.error('[EnsureRecords] Stack trace:', error.stack);
     // Don't block - continue even if there's an error
     next();
   }
