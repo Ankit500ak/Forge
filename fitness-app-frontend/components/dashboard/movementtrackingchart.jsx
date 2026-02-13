@@ -199,7 +199,7 @@ const MovementTrackingChart = ({ weeklyData = [] }) => {
     return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   };
 
-  // Fetch weekly data
+  // Auto-start tracking and fetch weekly data on mount
   useEffect(() => {
     const fetchMovementData = async () => {
       try {
@@ -229,6 +229,8 @@ const MovementTrackingChart = ({ weeklyData = [] }) => {
       }
     };
 
+    // Auto-start tracking
+    requestPermissions();
     fetchMovementData();
 
     return () => {
@@ -514,73 +516,6 @@ const MovementTrackingChart = ({ weeklyData = [] }) => {
           </div>
         )}
 
-        {/* Control Button */}
-        {!isTracking ? (
-          <button
-            onClick={requestPermissions}
-            disabled={permissionStatus === 'requesting'}
-            style={{
-              width: '100%',
-              padding: '18px 24px',
-              background: permissionStatus === 'denied' 
-                ? 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)'
-                : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-              border: 'none',
-              borderRadius: '16px',
-              color: '#ffffff',
-              fontSize: '16px',
-              fontWeight: '700',
-              cursor: permissionStatus === 'requesting' ? 'not-allowed' : 'pointer',
-              marginBottom: '16px',
-              boxShadow: permissionStatus === 'denied'
-                ? '0 8px 24px rgba(220, 38, 38, 0.3)'
-                : '0 8px 24px rgba(59, 130, 246, 0.3)',
-              transition: 'all 0.3s ease',
-              opacity: permissionStatus === 'requesting' ? 0.7 : 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              letterSpacing: '0.3px'
-            }}
-          >
-            <span style={{ fontSize: '20px' }}>
-              {permissionStatus === 'requesting' ? '⏳' : permissionStatus === 'denied' ? '⚠️' : '▶️'}
-            </span>
-            <span>
-              {permissionStatus === 'requesting' ? 'Requesting Access...' : 
-               permissionStatus === 'denied' ? 'Enable Permissions' :
-               'Start Tracking'}
-            </span>
-          </button>
-        ) : (
-          <button
-            onClick={stopTracking}
-            style={{
-              width: '100%',
-              padding: '18px 24px',
-              background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-              border: 'none',
-              borderRadius: '16px',
-              color: '#ffffff',
-              fontSize: '16px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              marginBottom: '16px',
-              boxShadow: '0 8px 24px rgba(220, 38, 38, 0.3)',
-              transition: 'all 0.3s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              letterSpacing: '0.3px'
-            }}
-          >
-            <span style={{ fontSize: '20px' }}>⏹</span>
-            <span>Stop Tracking</span>
-          </button>
-        )}
-
         {/* Weekly Activity Section */}
         {safeWeeklyData.length > 0 && (
           <div style={{
@@ -760,43 +695,6 @@ const MovementTrackingChart = ({ weeklyData = [] }) => {
             </div>
           </div>
         )}
-
-        {/* Tips Card */}
-        <div style={{
-          background: 'rgba(59, 130, 246, 0.05)',
-          borderRadius: '20px',
-          padding: '20px',
-          border: '1px solid rgba(59, 130, 246, 0.1)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '12px'
-          }}>
-            <div style={{ fontSize: '24px' }}>💡</div>
-            <div>
-              <div style={{
-                fontSize: '14px',
-                fontWeight: '700',
-                marginBottom: '8px',
-                color: '#fff'
-              }}>
-                Tracking Tips
-              </div>
-              <div style={{
-                fontSize: '13px',
-                lineHeight: '1.6',
-                color: '#888'
-              }}>
-                • Keep your phone in your pocket for accurate step counting
-                <br />
-                • Movement data is processed locally on your device
-                <br />
-                • Battery optimized for all-day tracking
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Bottom Safe Area */}
