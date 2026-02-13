@@ -1,6 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import apiClient from './api-client'
 
 export interface InventoryItem {
   id: string
@@ -55,38 +56,80 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [stats, setStats] = useState<UserStats>({
+// Helper to map database stats (0-100 scale) to app format
+function mapDatabaseStatsToAppFormat(dbStats: any): UserStats {
+  const strength = dbStats?.strength ?? 0
+  const speed = dbStats?.speed ?? 0
+  const endurance = dbStats?.endurance ?? 0
+  const power = dbStats?.power ?? 0
+  const recovery = dbStats?.recovery ?? 0
+
+  return {
     strength: {
-      benchPress: 185,
-      deadlift: 315,
-      squat: 275,
-      totalLifted: 156420,
+      benchPress: Math.round(strength * 2.5), // Scale 0-100 to realistic bench press
+      deadlift: Math.round(strength * 3.5),
+      squat: Math.round(strength * 3),
+      totalLifted: Math.round(strength * 1564.2), // Scaled realistic total
       goal: 200000,
     },
     cardio: {
-      distanceRun: 45.2,
-      caloriesBurned: 28500,
-      sessions: 24,
-      longestRun: 8.5,
+      distanceRun: (endurance * 0.5), // Scale to miles
+      caloriesBurned: Math.round(endurance * 285), // Scaled calories
+      sessions: Math.round((endurance + speed) / 2), // Average of two stats
+      longestRun: (endurance * 0.085), // Scale to miles
       goal: 500,
     },
     agility: {
-      speed: 12.5,
-      reflexTime: 220,
-      flexibility: 72,
+      speed: 5 + (speed * 0.065), // Base 5 mph + scaled speed
+      reflexTime: 300 - (speed * 2), // Lower is better, so inverse
+      flexibility: (strength + power) / 2, // Mix of stats
       goal: 100,
     },
     health: {
-      bmi: 22.5,
-      restingHeartRate: 62,
-      sleepQuality: 85,
-      stressLevel: 35,
+      bmi: 25 - (power * 0.1), // Lower is healthier
+      restingHeartRate: 70 - (recovery * 0.5), // Recovery affects heart rate
+      sleepQuality: recovery + (endurance * 0.2), // Recovery + endurance
+      stressLevel: 100 - (recovery * 1.2), // Recovery reduces stress
       goal: 90,
     },
-    xpGained: 15000,
-    weeklyXp: 3400,
-    monthlyXp: 12500,
+    xpGained: 0,
+    weeklyXp: 0,
+    monthlyXp: 0,
+  }
+}
+
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  const [stats, setStats] = useState<UserStats>({
+    strength: {
+      benchPress: 0,
+      deadlift: 0,
+      squat: 0,
+      totalLifted: 0,
+      goal: 200000,
+    },
+    cardio: {
+      distanceRun: 0,
+      caloriesBurned: 0,
+      sessions: 0,
+      longestRun: 0,
+      goal: 500,
+    },
+    agility: {
+      speed: 5,
+      reflexTime: 300,
+      flexibility: 0,
+      goal: 100,
+    },
+    health: {
+      bmi: 25,
+      restingHeartRate: 70,
+      sleepQuality: 0,
+      stressLevel: 100,
+      goal: 90,
+    },
+    xpGained: 0,
+    weeklyXp: 0,
+    monthlyXp: 0,
   })
 
   const [inventory, setInventory] = useState<InventoryItem[]>([
@@ -149,6 +192,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       acquired: false,
     },
   ])
+
+  // Fetch real stats from API on mount
+  useEffect(() => {
+    const fetchRealStats = async () => {
+      try {
+        const response = await apiClient.get('/users/me/game')
+        if (response.data?.stats) {
+          const realStats = mapDatabaseStatsToAppFormat(response.data.stats)
+          setStats(realStats)
+          console.log('✅ Loaded real stats from database:', response.data.stats)
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to fetch real stats, using defaults:', err)
+      }
+    }
+    fetchRealStats()
+  }, [])
 
   const addStatPoints = (points: number, activity: string) => {
     console.log(`Added ${points} points for ${activity}`)

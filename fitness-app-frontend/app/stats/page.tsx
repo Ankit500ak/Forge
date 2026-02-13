@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Navigation from '@/components/navigation'
 import { ProgressionGrid } from '@/components/progression-grid'
+import apiClient from '@/lib/api-client'
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 
 export default function StatsPage() {
@@ -20,6 +21,32 @@ export default function StatsPage() {
       router.push('/')
     }
   }, [user, router])
+
+  // Fetch real stats from API
+  useEffect(() => {
+    const fetchRealStats = async () => {
+      try {
+        const response = await apiClient.get('/users/me/game')
+        if (response.data?.stats) {
+          const dbStats = response.data.stats
+          setCurrentStats([
+            { name: 'Strength', value: Math.round(dbStats.strength || 0) },
+            { name: 'Speed', value: Math.round(dbStats.speed || 0) },
+            { name: 'Endurance', value: Math.round(dbStats.endurance || 0) },
+            { name: 'Agility', value: Math.round(dbStats.agility || 0) },
+            { name: 'Recovery', value: Math.round(dbStats.recovery || 0) },
+          ])
+          console.log('✅ Loaded real stats for radar chart:', dbStats)
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to fetch stats:', err)
+      }
+    }
+    
+    if (user) {
+      fetchRealStats()
+    }
+  }, [user])
 
   if (!mounted || !user) {
     return null
@@ -126,14 +153,14 @@ export default function StatsPage() {
     { month: 'Jun', strength: 78, cardio: 82, agility: 72, health: 88 },
   ]
 
-  // Current stats radar
-  const currentStats = [
-    { name: 'Strength', value: 78 },
-    { name: 'Cardio', value: 82 },
-    { name: 'Agility', value: 72 },
-    { name: 'Health', value: 88 },
-    { name: 'Recovery', value: 75 },
-  ]
+  // Current stats radar - using real stats from database scaled to 0-100
+  const [currentStats, setCurrentStats] = useState([
+    { name: 'Strength', value: 0 },
+    { name: 'Speed', value: 0 },
+    { name: 'Endurance', value: 0 },
+    { name: 'Agility', value: 0 },
+    { name: 'Recovery', value: 0 },
+  ])
 
   return (
     <div className="min-h-screen bg-background pb-24">
