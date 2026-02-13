@@ -391,7 +391,7 @@ export const ensureUserRecords = async (req, res, next) => {
     // Check if user_progression exists
     const { data: progression, error: progError } = await supabase
       .from('user_progression')
-      .select('id')
+      .select('user_id')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -437,7 +437,7 @@ export const ensureUserRecords = async (req, res, next) => {
     // Check if user_stats exists
     const { data: stats, error: statsError } = await supabase
       .from('user_stats')
-      .select('id')
+      .select('user_id')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -480,7 +480,7 @@ export const ensureUserRecords = async (req, res, next) => {
     // Check if fitness_profiles exists
     const { data: fitness, error: fitnessError } = await supabase
       .from('fitness_profiles')
-      .select('id')
+      .select('user_id')
       .eq('user_id', userId)
       .maybeSingle();
 
