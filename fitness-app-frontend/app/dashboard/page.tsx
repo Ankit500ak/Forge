@@ -284,6 +284,16 @@ function DashboardContent() {
   const rankColor = getRankColor(user?.rank ?? 'F')
   const totalXPGained = stats?.xpGained ?? 0
 
+  // Calculate next rank
+  const RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'A+', 'S', 'S+', 'SS+']
+  const currentRankIndex = RANK_ORDER.indexOf(user?.rank ?? 'F')
+  const nextRank = currentRankIndex < RANK_ORDER.length - 1 
+    ? RANK_ORDER[currentRankIndex + 1]
+    : user?.rank ?? 'F'
+
+  // Calculate progress to next rank (using weekly XP as progress metric)
+  const progressToNextRank = Math.min((stats.weeklyXp / 4000) * 100, 100)
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <Navigation />
@@ -295,6 +305,11 @@ function DashboardContent() {
           rank={user?.rank ?? 'F'}
           level={user?.level ?? 1}
           rankName={getRankName(user?.rank ?? 'F')}
+          totalXp={progression?.total_xp ?? 0}
+          weeklyXp={stats.weeklyXp ?? 0}
+          nextRank={nextRank}
+          nextRankName={getRankName(nextRank)}
+          progressPercent={progressToNextRank}
         />
 
         {/* Game Stats fetched from backend */}

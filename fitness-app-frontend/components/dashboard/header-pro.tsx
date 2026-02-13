@@ -8,13 +8,40 @@ interface HeaderProProps {
   rank: string
   level?: number
   rankName?: string
+  totalXp?: number
+  weeklyXp?: number
+  nextRank?: string
+  nextRankName?: string
+  progressPercent?: number
 }
 
-export function HeaderPro({ userName, rank, level = 1, rankName = 'Novice' }: HeaderProProps) {
+const RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'A+', 'S', 'S+', 'SS+']
+
+export function HeaderPro({ 
+  userName, 
+  rank, 
+  level = 1, 
+  rankName = 'Novice',
+  totalXp = 0,
+  weeklyXp = 0,
+  nextRank,
+  nextRankName,
+  progressPercent = 0
+}: HeaderProProps) {
   const { theme } = useRankTheme()
 
+  // Calculate next rank
+  const currentRankIndex = RANK_ORDER.indexOf(rank)
+  const calculatedNextRank = currentRankIndex < RANK_ORDER.length - 1 
+    ? RANK_ORDER[currentRankIndex + 1] 
+    : rank
+
+  const finalNextRank = nextRank || calculatedNextRank
+  const finalNextRankName = nextRankName || getRankNameForRank(finalNextRank)
+  const finalProgressPercent = progressPercent || 0
+
   return (
-    <div className="relative w-full overflow-hidden px-4 py-6 sm:px-6 sm:py-8">
+    <div className="relative w-full overflow-hidden px-4 py-3 sm:px-6 sm:py-4">
       {/* Background with animated gradient */}
       <div
         className="absolute inset-0 opacity-40 pointer-events-none"
@@ -36,7 +63,7 @@ export function HeaderPro({ userName, rank, level = 1, rankName = 'Novice' }: He
       {/* Main Content */}
       <div className="relative z-10">
         {/* Top Row: Name and Rank Badge */}
-        <div className="flex items-start justify-between gap-6 mb-6">
+        <div className="flex items-start justify-between gap-6 mb-4">
           {/* Left: User Info */}
           <div className="flex-1">
             {/* User Name */}
@@ -107,7 +134,7 @@ export function HeaderPro({ userName, rank, level = 1, rankName = 'Novice' }: He
 
             {/* Level indicator below badge */}
             <div
-              className="absolute -bottom-8 px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider whitespace-nowrap backdrop-blur-md"
+              className="absolute -bottom-6 px-2 py-0.5 rounded-full border text-xs font-bold uppercase tracking-wider whitespace-nowrap backdrop-blur-md"
               style={{
                 backgroundColor: `rgb(var(--color-${theme.accent.main}) / 0.15)`,
                 borderColor: `rgb(var(--color-${theme.accent.main}) / 0.6)`,
@@ -119,10 +146,128 @@ export function HeaderPro({ userName, rank, level = 1, rankName = 'Novice' }: He
           </div>
         </div>
 
+        {/* Progress Section */}
+        <div className="mt-2 space-y-2">
+          {/* XP Stats Row */}
+          <div className="grid grid-cols-3 gap-2">
+            {/* Total XP */}
+            <div
+              className="px-3 py-2 rounded-lg border backdrop-blur-sm flex flex-col items-center"
+              style={{
+                backgroundColor: `rgb(var(--color-${theme.accent.main}) / 0.08)`,
+                borderColor: `rgb(var(--color-${theme.accent.main}) / 0.3)`,
+              }}
+            >
+              <p
+                className="text-xs font-semibold uppercase tracking-wide mb-0.5"
+                style={{ color: `rgb(var(--color-${theme.accent.light}))` }}
+              >
+                Total XP
+              </p>
+              <p
+                className="text-base font-black"
+                style={{ color: `rgb(var(--color-${theme.accent.main}))` }}
+              >
+                {totalXp.toLocaleString()}
+              </p>
+            </div>
+
+            {/* Weekly XP */}
+            <div
+              className="px-3 py-2 rounded-lg border backdrop-blur-sm flex flex-col items-center"
+              style={{
+                backgroundColor: `rgb(var(--color-${theme.accent.main}) / 0.08)`,
+                borderColor: `rgb(var(--color-${theme.accent.main}) / 0.3)`,
+              }}
+            >
+              <p
+                className="text-xs font-semibold uppercase tracking-wide mb-0.5"
+                style={{ color: `rgb(var(--color-${theme.accent.light}))` }}
+              >
+                Weekly XP
+              </p>
+              <p
+                className="text-base font-black"
+                style={{ color: `rgb(var(--color-${theme.accent.main}))` }}
+              >
+                {weeklyXp.toLocaleString()}
+              </p>
+            </div>
+
+            {/* Next Rank */}
+            <div
+              className="px-3 py-2 rounded-lg border backdrop-blur-sm flex flex-col items-center"
+              style={{
+                backgroundColor: `rgb(var(--color-${theme.accent.main}) / 0.08)`,
+                borderColor: `rgb(var(--color-${theme.accent.main}) / 0.3)`,
+              }}
+            >
+              <p
+                className="text-xs font-semibold uppercase tracking-wide mb-0.5"
+                style={{ color: `rgb(var(--color-${theme.accent.light}))` }}
+              >
+                Next Rank
+              </p>
+              <p
+                className="text-base font-black"
+                style={{ color: `rgb(var(--color-${theme.accent.main}))` }}
+              >
+                {finalNextRank}
+              </p>
+            </div>
+          </div>
+
+          {/* Progress Bar to Next Rank */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between px-1">
+              <p
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: `rgb(var(--color-${theme.accent.light}))` }}
+              >
+                Progress to {finalNextRankName}
+              </p>
+              <p
+                className="text-xs font-black"
+                style={{ color: `rgb(var(--color-${theme.accent.main}))` }}
+              >
+                {Math.round(finalProgressPercent)}%
+              </p>
+            </div>
+
+            {/* Progress Bar */}
+            <div
+              className="relative h-2 rounded-full overflow-hidden border"
+              style={{
+                backgroundColor: `rgb(var(--color-${theme.accent.main}) / 0.1)`,
+                borderColor: `rgb(var(--color-${theme.accent.main}) / 0.3)`,
+              }}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-500 relative overflow-hidden"
+                style={{
+                  width: `${Math.min(finalProgressPercent, 100)}%`,
+                  background: `linear-gradient(90deg, rgb(var(--color-${theme.accent.main})), rgb(var(--color-${theme.accent.main}) / 0.6))`,
+                  boxShadow: `0 0 10px rgb(var(--color-${theme.accent.main}) / 0.6)`,
+                }}
+              >
+                <div
+                  className="h-full w-full"
+                  style={{
+                    background: `linear-gradient(90deg, transparent, rgb(255, 255, 255 / 0.3), transparent)`,
+                    animation: 'shimmer 2s infinite',
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Bottom Accent */}
-        <div className="mt-20 h-px" style={{
-          background: `linear-gradient(90deg, transparent, rgb(var(--color-${theme.accent.main}) / 0.3), transparent)`,
-        }} />
+        <div className="mt-3 h-px"
+          style={{
+            background: `linear-gradient(90deg, transparent, rgb(var(--color-${theme.accent.main}) / 0.3), transparent)`,
+          }}
+        />
       </div>
 
       {/* CSS for animations */}
@@ -135,7 +280,33 @@ export function HeaderPro({ userName, rank, level = 1, rankName = 'Novice' }: He
             opacity: 1.2;
           }
         }
+
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
       `}</style>
     </div>
   )
+}
+
+function getRankNameForRank(rank: string): string {
+  const rankNames: Record<string, string> = {
+    'SS+': 'Legendary+',
+    'SS': 'Legendary',
+    'S+': 'Champion+',
+    'S': 'Champion',
+    'A+': 'Master+',
+    'A': 'Master',
+    'B': 'Expert',
+    'C': 'Adept',
+    'D': 'Intermediate',
+    'E': 'Apprentice',
+    'F': 'Novice',
+  }
+  return rankNames[rank] || 'Novice'
 }
