@@ -411,11 +411,9 @@ export const ensureUserRecords = async (req, res, next) => {
           user_id: userId,
           level: 1,
           total_xp: 0,
-          current_xp: 0,
-          xp_to_next_level: 100,
           xp_today: 0,
           rank: 'Recruit',
-          prestige: 0,
+          stat_points: 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -454,6 +452,7 @@ export const ensureUserRecords = async (req, res, next) => {
         .from('user_stats')
         .insert({
           user_id: userId,
+          user_id_ref: userId,
           strength: 0,
           speed: 0,
           endurance: 0,

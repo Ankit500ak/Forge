@@ -352,6 +352,13 @@ export const completeTask = async (req, res) => {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
+    // Validate taskId is UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(taskId)) {
+      console.error(`[Tasks] Invalid task ID format: ${taskId}`);
+      return res.status(400).json({ message: 'Invalid task ID format. Must be a valid UUID.' });
+    }
+
     // Get task
     const { data: task, error: taskError } = await supabase
       .from('tasks')

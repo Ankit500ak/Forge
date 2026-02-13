@@ -140,11 +140,8 @@ router.get('/me/game', authenticate, ensureUserRecords, async (req, res) => {
       user_id: userId,
       level: 1,
       total_xp: 0,
-      current_xp: 0,
       xp_today: 0,
-      xp_to_next_level: 100,
       rank: 'Recruit',
-      prestige: 0,
       stat_points: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
