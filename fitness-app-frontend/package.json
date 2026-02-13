@@ -6,7 +6,15 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "capacitor:build": "npm run build && npx cap sync",
+    "capacitor:open:ios": "npx cap open ios",
+    "capacitor:open:android": "npx cap open android",
+    "capacitor:run:ios": "npm run build && npx cap sync && npx cap run ios",
+    "capacitor:run:android": "npm run build && npx cap sync && npx cap run android",
+    "capacitor:update": "npx cap update",
+    "capacitor:add:android": "npx cap add android",
+    "capacitor:add:ios": "npx cap add ios"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -51,7 +59,7 @@
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
-    "next": "16.0.10",
+    "next": "^16.1.6",
     "next-themes": "^0.4.6",
     "react": "19.2.0",
     "react-day-picker": "9.8.0",
@@ -66,6 +74,16 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/camera": "^6.0.0",
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/device": "^6.0.0",
+    "@capacitor/geolocation": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "@capacitor/local-notifications": "^6.0.0",
+    "@capacitor/motion": "^6.0.0",
+    "@capacitor/push-notifications": "^6.0.0",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^19",

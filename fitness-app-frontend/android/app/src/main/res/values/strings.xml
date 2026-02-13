@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Fitness RPG</string>
+    <string name="title_activity_main">Fitness RPG</string>
+    <string name="package_name">com.fitnessrpg.app</string>
+    <string name="custom_url_scheme">com.fitnessrpg.app</string>
+</resources>

@@ -11,7 +11,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { SectionCard } from '@/components/dashboard/section-card'
 import { QuestsSection } from '@/components/dashboard/quests-section'
 import { NextLevelSection } from '@/components/dashboard/next-level-section'
-import { HeaderPro } from '@/components/dashboard/header-pro'
+import HeaderPro from '@/components/dashboard/header-pro'
 import GameStats from '@/components/game-stats'
 import PowerAnalysisSection from '@/components/dashboard/power-analysis-section'  
 import MovementTrackingChart from '@/components/dashboard/movementtrackingchart'
@@ -301,7 +301,7 @@ function DashboardContent() {
       <main className="overflow-y-auto">
         {/* Header Section - Premium Design */}
         <HeaderPro
-          userName={user?.name ?? 'Hunter'}
+          name={user?.name ?? 'Hunter'}
           rank={user?.rank ?? 'F'}
           level={user?.level ?? 1}
           rankName={getRankName(user?.rank ?? 'F')}
