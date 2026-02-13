@@ -116,19 +116,6 @@ export function WelcomeSection({ userName, rank }: WelcomeSectionProps) {
                   right: 'calc(1rem + 1rem)',
                 }}
               >
-                {/* Reviews */}
-                <button
-                  onClick={() => setMenuOpen(false)}
-                  className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-opacity-80 transition-all border-b"
-                  style={{
-                    color: `rgb(var(--color-${theme.accent.light}))`,
-                    borderColor: `rgb(var(--color-${theme.accent.main}) / 0.3)`,
-                  }}
-                >
-                  <span>⭐</span>
-                  <span className="font-semibold">Reviews</span>
-                </button>
-
                 {/* Settings */}
                 <button
                   onClick={() => setMenuOpen(false)}
@@ -140,19 +127,6 @@ export function WelcomeSection({ userName, rank }: WelcomeSectionProps) {
                 >
                   <span>⚙️</span>
                   <span className="font-semibold">Settings</span>
-                </button>
-
-                {/* Profile */}
-                <button
-                  onClick={() => setMenuOpen(false)}
-                  className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-opacity-80 transition-all border-b"
-                  style={{
-                    color: `rgb(var(--color-${theme.accent.light}))`,
-                    borderColor: `rgb(var(--color-${theme.accent.main}) / 0.3)`,
-                  }}
-                >
-                  <span>👤</span>
-                  <span className="font-semibold">Profile</span>
                 </button>
 
                 {/* Logout */}
