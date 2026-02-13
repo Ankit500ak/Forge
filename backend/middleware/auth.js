@@ -420,10 +420,15 @@ export const ensureUserRecords = async (req, res, next) => {
         .select();
       
       if (createProgError) {
-        console.error('[EnsureRecords] ❌ Error creating progression:', createProgError.message);
-        console.error('[EnsureRecords] Error code:', createProgError.code);
-        if (createProgError.code === '42501') {
-          console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING INSERT - Table: user_progression');
+        // Handle duplicate key error gracefully (concurrent requests)
+        if (createProgError.code === '23505') {
+          console.log('[EnsureRecords] ⚠️  Record already exists (created by concurrent request), continuing...');
+        } else {
+          console.error('[EnsureRecords] ❌ Error creating progression:', createProgError.message);
+          console.error('[EnsureRecords] Error code:', createProgError.code);
+          if (createProgError.code === '42501') {
+            console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING INSERT - Table: user_progression');
+          }
         }
       } else {
         console.log('[EnsureRecords] ✅ Created user_progression:', newProg);
@@ -465,9 +470,14 @@ export const ensureUserRecords = async (req, res, next) => {
         .select();
       
       if (createStatsError) {
-        console.error('[EnsureRecords] ❌ Error creating stats:', createStatsError.message);
-        if (createStatsError.code === '42501') {
-          console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING INSERT - Table: user_stats');
+        // Handle duplicate key error gracefully (concurrent requests)
+        if (createStatsError.code === '23505') {
+          console.log('[EnsureRecords] ⚠️  Record already exists (created by concurrent request), continuing...');
+        } else {
+          console.error('[EnsureRecords] ❌ Error creating stats:', createStatsError.message);
+          if (createStatsError.code === '42501') {
+            console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING INSERT - Table: user_stats');
+          }
         }
       } else {
         console.log('[EnsureRecords] ✅ Created user_stats:', newStats);
@@ -503,9 +513,14 @@ export const ensureUserRecords = async (req, res, next) => {
         .select();
       
       if (createFitnessError) {
-        console.error('[EnsureRecords] ❌ Error creating fitness_profiles:', createFitnessError.message);
-        if (createFitnessError.code === '42501') {
-          console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING INSERT - Table: fitness_profiles');
+        // Handle duplicate key error gracefully (concurrent requests)
+        if (createFitnessError.code === '23505') {
+          console.log('[EnsureRecords] ⚠️  Record already exists (created by concurrent request), continuing...');
+        } else {
+          console.error('[EnsureRecords] ❌ Error creating fitness_profiles:', createFitnessError.message);
+          if (createFitnessError.code === '42501') {
+            console.error('[EnsureRecords] ⚠️  RLS POLICY BLOCKING INSERT - Table: fitness_profiles');
+          }
         }
       } else {
         console.log('[EnsureRecords] ✅ Created fitness_profiles:', newFitness);
