@@ -15,6 +15,8 @@ import HeaderPro from '@/components/dashboard/header-pro'
 import GameStats from '@/components/game-stats'
 import PowerAnalysisSection from '@/components/dashboard/power-analysis-section'
 import MovementTrackingChart from '@/components/dashboard/movementtrackingchart'
+import { FoodDetectionCamera } from '@/components/food/FoodDetectionCamera'
+import { useFoodDetection } from '@/hooks/useFoodDetection'
 import apiClient from '@/lib/api-client'
 
 function DashboardContent() {
@@ -23,6 +25,7 @@ function DashboardContent() {
   const { theme } = useRankTheme()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const { isOpen, detectedFoods, openCamera, closeCamera, handleFoodsDetected } = useFoodDetection()
 
   type TodayTask = {
     id: string | number  // ✅ NOW SUPPORTS BOTH UUID AND NUMERIC IDS
@@ -335,81 +338,110 @@ function DashboardContent() {
 
 
 
-          {/* Calorie Log Chart */}
-          <SectionCard
-            title="Calorie Log"
-            icon="🔥"
-            subtitle="Daily energy expenditure"
-          >
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                data={weeklyData}
-                margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+          {/* Calorie Log Chart & Food Detection */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Calorie Chart - Takes 2/3 on large screens */}
+            <div className="lg:col-span-2">
+              <SectionCard
+                title="Calorie Log"
+                icon="🔥"
+                subtitle="Daily energy expenditure"
               >
-                <defs>
-                  <linearGradient id="calorieGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#FF6B6B" stopOpacity={0.9} />
-                    <stop offset="100%" stopColor="#FF8E53" stopOpacity={0.7} />
-                  </linearGradient>
-                </defs>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={weeklyData}
+                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                  >
+                    <defs>
+                      <linearGradient id="calorieGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#FF6B6B" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#FF8E53" stopOpacity={0.7} />
+                      </linearGradient>
+                    </defs>
 
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#ffffff"
-                  opacity={0.15}
-                  vertical={false}
-                />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#ffffff"
+                      opacity={0.15}
+                      vertical={false}
+                    />
 
-                <XAxis
-                  dataKey="day"
-                  stroke="#ffffff"
-                  tick={{ fill: '#ffffff', fontSize: 13, fontWeight: 500 }}
-                  axisLine={{ stroke: '#ffffff', opacity: 0.2 }}
-                  tickLine={false}
-                />
+                    <XAxis
+                      dataKey="day"
+                      stroke="#ffffff"
+                      tick={{ fill: '#ffffff', fontSize: 13, fontWeight: 500 }}
+                      axisLine={{ stroke: '#ffffff', opacity: 0.2 }}
+                      tickLine={false}
+                    />
 
-                <YAxis
-                  stroke="#ffffff"
-                  tick={{ fill: '#ffffff', fontSize: 12, fontWeight: 500 }}
-                  axisLine={{ stroke: '#ffffff', opacity: 0.2 }}
-                  tickLine={false}
-                  width={50}
-                />
+                    <YAxis
+                      stroke="#ffffff"
+                      tick={{ fill: '#ffffff', fontSize: 12, fontWeight: 500 }}
+                      axisLine={{ stroke: '#ffffff', opacity: 0.2 }}
+                      tickLine={false}
+                      width={50}
+                    />
 
-                <Tooltip
-                  cursor={{ fill: 'rgba(255, 255, 255, 0.1)' }}
-                  contentStyle={{
-                    backgroundColor: 'rgba(26, 26, 46, 0.95)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 107, 107, 0.3)',
-                    borderRadius: '16px',
-                    padding: '12px 16px',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                  }}
-                  labelStyle={{
-                    color: '#ffffff',
-                    fontWeight: 700,
-                    fontSize: '14px',
-                    marginBottom: '4px'
-                  }}
-                  itemStyle={{
-                    color: '#FF6B6B',
-                    fontWeight: 600,
-                    fontSize: '13px'
-                  }}
-                  formatter={(value: any) => [`${value.toLocaleString()} kcal`, 'Calories Burned']}
-                />
+                    <Tooltip
+                      cursor={{ fill: 'rgba(255, 255, 255, 0.1)' }}
+                      contentStyle={{
+                        backgroundColor: 'rgba(26, 26, 46, 0.95)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255, 107, 107, 0.3)',
+                        borderRadius: '16px',
+                        padding: '12px 16px',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                      }}
+                      labelStyle={{
+                        color: '#ffffff',
+                        fontWeight: 700,
+                        fontSize: '14px',
+                        marginBottom: '4px'
+                      }}
+                      itemStyle={{
+                        color: '#FF6B6B',
+                        fontWeight: 600,
+                        fontSize: '13px'
+                      }}
+                      formatter={(value: any) => [`${value.toLocaleString()} kcal`, 'Calories Burned']}
+                    />
 
-                <Bar
-                  dataKey="calories"
-                  fill="url(#calorieGradient)"
-                  radius={[10, 10, 0, 0]}
-                  maxBarSize={60}
-                  animationDuration={800}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </SectionCard>
+                    <Bar
+                      dataKey="calories"
+                      fill="url(#calorieGradient)"
+                      radius={[10, 10, 0, 0]}
+                      maxBarSize={60}
+                      animationDuration={800}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </SectionCard>
+            </div>
+
+            {/* Food Detection Camera - Takes 1/3 on large screens */}
+            <div className="lg:col-span-1">
+              <button
+                onClick={openCamera}
+                className="w-full h-full min-h-[300px] rounded-2xl border-2 overflow-hidden backdrop-blur-sm p-6 flex flex-col items-center justify-center group hover:scale-105 transition-all duration-300"
+                style={{
+                  backgroundColor: 'rgba(124, 58, 255, 0.15)',
+                  borderColor: '#ffffff40',
+                  boxShadow: '0 0 30px rgba(124, 58, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                }}
+              >
+                <div className="text-center space-y-3">
+                  <div className="text-6xl group-hover:scale-110 transition-transform duration-300">📷</div>
+                  <h3 className="text-lg font-bold text-white">Food Detection</h3>
+                  <p className="text-sm text-white/70">Detect & analyze nutrition</p>
+                  <div className="pt-4">
+                    <span className="inline-block px-4 py-2 bg-purple-600/80 rounded-lg text-xs font-semibold text-white group-hover:bg-purple-500 transition-colors">
+                      Open Camera
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
 
           {/* Power Analysis Radar */}
           <PowerAnalysisSection />
@@ -534,6 +566,11 @@ function DashboardContent() {
           </div>
         </div>
       </main>
+
+      {/* Food Detection Camera Modal */}
+      {isOpen && (
+        <FoodDetectionCamera onDetected={handleFoodsDetected} onClose={closeCamera} />
+      )}
     </div>
   )
 }
