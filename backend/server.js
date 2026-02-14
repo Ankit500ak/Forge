@@ -9,7 +9,7 @@ import debugRoutes from './routes/debug.js';
 import { initXpRolloverService, triggerRollover } from './services/xpRollover.js';
 import { initializeTaskScheduler } from './services/taskScheduler.js';
 
-// Force redeploy - update timestamp
+// Force redeploy - update timestamp v2
 import { Pool } from 'pg';
 
 dotenv.config();
@@ -124,9 +124,9 @@ app.post('/api/admin/tasks/reset-now', async (req, res) => {
     res.json({ message: '✅ All tasks have been reset successfully!' });
   } catch (error) {
     console.error('Error resetting tasks:', error);
-    res.status(500).json({ 
-      message: 'Task reset failed', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Task reset failed',
+      error: error.message
     });
   }
 });
@@ -135,7 +135,7 @@ app.get('/api/admin/tasks/next-reset', async (req, res) => {
   try {
     const { getNextResetTime } = await import('./services/taskScheduler.js');
     const nextReset = getNextResetTime();
-    res.json({ 
+    res.json({
       nextResetTime: nextReset.toLocaleString(),
       message: 'Tasks will reset at 12:00 PM (noon) daily',
       schedule: '0 12 * * *'
