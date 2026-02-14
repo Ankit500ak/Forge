@@ -354,11 +354,14 @@ export const completeTask = async (req, res) => {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    // Validate taskId is UUID format
+    // Validate taskId - accept both numeric and UUID formats
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(taskId)) {
+    const isNumeric = /^\d+$/.test(String(taskId));
+    const isUUID = uuidRegex.test(String(taskId));
+
+    if (!isNumeric && !isUUID) {
       console.error(`[Tasks] Invalid task ID format: ${taskId}`);
-      return res.status(400).json({ message: 'Invalid task ID format. Must be a valid UUID.' });
+      return res.status(400).json({ message: 'Invalid task ID format. Must be a valid ID or UUID.' });
     }
 
     // Get task
