@@ -1,0 +1,17 @@
+name: Keep Server Awake
+
+on:
+  schedule:
+    # Run every 10 minutes to prevent Render free tier from spinning down
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend API
+        run: |
+          echo "🔔 Pinging server to keep it awake..."
+          curl -s -w "\nStatus: %{http_code}\n" https://forge-1-b9ib.onrender.com/api/health || echo "⚠️ Request failed, but that's OK"
+          echo "✅ Keep-alive ping sent"

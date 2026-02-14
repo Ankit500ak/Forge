@@ -8,6 +8,7 @@
     "start": "node server.js",
     "camera": "node counter/start-camera.js",
     "dev": "nodemon server.js",
+    "keep-alive": "node keep-alive.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
