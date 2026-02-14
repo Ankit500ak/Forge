@@ -7,7 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import csv from 'csv-parse/sync';
+import { parse } from 'csv-parse/sync';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,7 +41,7 @@ class CSVFoodLookup {
 
             // Read and parse CSV
             const fileContent = fs.readFileSync(csvPath, 'utf-8');
-            const records = csv.parse(fileContent, {
+            const records = parse(fileContent, {
                 columns: true,
                 skip_empty_lines: true,
                 trim: true
