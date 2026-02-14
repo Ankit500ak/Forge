@@ -6,6 +6,8 @@ import userRoutes from './routes/users.js';
 import ranksRoutes from './routes/ranks.js';
 import taskRoutes from './routes/tasks.js';
 import debugRoutes from './routes/debug.js';
+import foodRoutes from './routes/food.js';
+import cameraRoutes from './routes/camera.js';
 import { initXpRolloverService, triggerRollover } from './services/xpRollover.js';
 import { initializeTaskScheduler } from './services/taskScheduler.js';
 import { runMigrations } from './migrations.js';
@@ -109,6 +111,10 @@ console.log('[Server] Mounting tasks routes on /api/tasks');
 app.use('/api/tasks', taskRoutes);
 console.log('[Server] Mounting debug routes on /api/debug');
 app.use('/api/debug', debugRoutes);
+console.log('[Server] Mounting food detection routes on /api/food');
+app.use('/api/food', foodRoutes);
+console.log('[Server] Mounting camera routes on /api/camera');
+app.use('/api/camera', cameraRoutes);
 
 // ════════════════════════════════════════════════════════════════════════════
 // Admin endpoints for task scheduler (DAILY RESET AT 12 PM)
@@ -146,12 +152,12 @@ app.get('/api/admin/tasks/next-reset', async (req, res) => {
 // 404 handler for debugging
 app.use((req, res) => {
   console.error(`[404] Route not found: ${req.method} ${req.originalUrl}`);
-  console.error(`[404] Available base paths: /api/auth, /api/users, /api/ranks, /api/tasks, /api/debug`);
+  console.error(`[404] Available base paths: /api/auth, /api/users, /api/ranks, /api/tasks, /api/debug, /api/food, /api/camera`);
   res.status(404).json({
     message: 'Route not found',
     path: req.originalUrl,
     method: req.method,
-    availablePaths: ['/api/auth', '/api/users', '/api/ranks', '/api/tasks', '/api/debug', '/api/health', '/api/admin']
+    availablePaths: ['/api/auth', '/api/users', '/api/ranks', '/api/tasks', '/api/debug', '/api/food', '/api/camera', '/api/health', '/api/admin']
   });
 });
 
