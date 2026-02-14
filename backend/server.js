@@ -8,8 +8,7 @@ import taskRoutes from './routes/tasks.js';
 import debugRoutes from './routes/debug.js';
 import { initXpRolloverService, triggerRollover } from './services/xpRollover.js';
 import { initializeTaskScheduler } from './services/taskScheduler.js';
-
-// Force redeploy - update timestamp v2
+import { runMigrations } from './migrations.js';
 import { Pool } from 'pg';
 
 dotenv.config();
@@ -50,6 +49,11 @@ const testDatabaseConnection = async (retries = 3) => {
 };
 
 testDatabaseConnection();
+
+// Run database migrations
+console.log('🔄 Running database migrations...');
+await runMigrations();
+console.log('✅ Migrations complete!\n');
 
 // Initialize XP rollover service
 initXpRolloverService(pool);
