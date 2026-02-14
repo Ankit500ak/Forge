@@ -89,7 +89,7 @@ const S = {
 
 // ─── Quest Type ─────────────────────────────────────────────────────────────
 type Quest = {
-  id: number  // Numeric ID from database
+  id: number | string  // ✅ FIXED: Support both numeric IDs and UUID strings from backend
   name: string
   icon: string
   duration: string
@@ -178,9 +178,9 @@ function ProgressRing({ percent }: { percent: number }) {
 
 interface QuestCardProps {
   quest: Quest;
-  onToggle: (id: number) => void;
+  onToggle: (id: number | string) => void;
   isExpanded: boolean;
-  onExpand: (id: number) => void;
+  onExpand: (id: number | string) => void;
 }
 
 function QuestCard({ quest, onToggle, isExpanded, onExpand }: QuestCardProps) {
@@ -431,15 +431,15 @@ export function QuestsSection({
   onTaskComplete?: (xpGain: number, newProgression: any) => void
 }) {
   const [localQuests, setQuests] = useState<Quest[]>(quests);
-  const [expandedQuest, setExpandedQuest] = useState<number | null>(null);
-  const [celebrationId, setCelebrationId] = useState<number | null>(null);
+  const [expandedQuest, setExpandedQuest] = useState<number | string | null>(null);
+  const [celebrationId, setCelebrationId] = useState<number | string | null>(null);
 
   const completedCount = localQuests.filter(q => q.completed).length;
   const totalXP = localQuests.reduce((s, q) => s + q.xp, 0);
   const completedXP = localQuests.filter(q => q.completed).reduce((s, q) => s + q.xp, 0);
   const percent = Math.round((completedCount / localQuests.length) * 100);
 
-  const toggle = async (id: number) => {
+  const toggle = async (id: number | string) => {
     const quest = localQuests.find(q => q.id === id);
     if (!quest) {
       console.error('❌ Quest not found in local state:', id);
@@ -448,8 +448,8 @@ export function QuestsSection({
 
     console.log('🎯 [Toggle] Starting task completion for quest:', {
       questId: id,
+      questIdType: typeof id,
       questTitle: quest.name,
-      questType: typeof quest.id,
     });
 
     // Only allow completing incomplete tasks

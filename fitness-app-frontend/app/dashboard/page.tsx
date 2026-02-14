@@ -13,7 +13,7 @@ import { QuestsSection } from '@/components/dashboard/quests-section'
 import { NextLevelSection } from '@/components/dashboard/next-level-section'
 import HeaderPro from '@/components/dashboard/header-pro'
 import GameStats from '@/components/game-stats'
-import PowerAnalysisSection from '@/components/dashboard/power-analysis-section'  
+import PowerAnalysisSection from '@/components/dashboard/power-analysis-section'
 import MovementTrackingChart from '@/components/dashboard/movementtrackingchart'
 import apiClient from '@/lib/api-client'
 
@@ -23,9 +23,9 @@ function DashboardContent() {
   const { theme } = useRankTheme()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  
+
   type TodayTask = {
-    id: number
+    id: string | number  // ✅ NOW SUPPORTS BOTH UUID AND NUMERIC IDS
     name: string
     icon: string
     duration: string
@@ -38,16 +38,11 @@ function DashboardContent() {
 
   // Helper function to transform tasks safely - inside component
   const transformTask = (task: any, index: number): TodayTask => {
-    let id = task.id;
-    if (typeof id === 'string') {
-      id = parseInt(id, 10);
-    }
-    // Use combination of index and task name for unique fallback
-    if (isNaN(id)) {
-      id = index + 1; // Add 1 to avoid id: 0
-    }
+    // ✅ FIXED: Keep the original UUID/ID from the backend - don't create composite IDs!
+    const id = task.id; // Use the actual ID from the backend (UUID or numeric)
+
     return {
-      id: Number(`${index}${id}`), // Create composite unique ID
+      id: id, // ✅ Keep the real ID that matches the backend database
       name: task.title,
       icon: '⚔️',
       duration: '20 min',
@@ -124,7 +119,7 @@ function DashboardContent() {
 
   useEffect(() => {
     setMounted(true)
-    
+
     // Fetch progression data for rank-up conditions
     const fetchProgressionData = async () => {
       try {
@@ -133,7 +128,7 @@ function DashboardContent() {
         if (data) {
           setProgression(data)
         }
-        
+
         // Fetch stats
         try {
           const profileRes = await apiClient.get('/users/me')
@@ -150,7 +145,7 @@ function DashboardContent() {
         } catch (e) {
           // ignore
         }
-        
+
         // Fetch tasks info
         try {
           const tasksRes = await apiClient.get('/tasks')
@@ -161,7 +156,7 @@ function DashboardContent() {
         } catch (e) {
           // ignore
         }
-        
+
         // Fetch current streak
         try {
           const userRes = await apiClient.get('/users/me')
@@ -173,7 +168,7 @@ function DashboardContent() {
         console.error('Failed to fetch progression data:', err)
       }
     }
-    
+
     fetchProgressionData()
   }, [])
 
@@ -181,15 +176,15 @@ function DashboardContent() {
   useEffect(() => {
     const fetchTodayTasks = async () => {
       if (!user?.id) return
-      
+
       try {
         setTasksLoading(true)
         const response = await apiClient.get('/tasks/today')
         const transformedTasks = response.data.tasks.map((task: any, index: number) => transformTask(task, index))
-        
+
         console.log('Transformed tasks:', transformedTasks)
         setTodayTasks(transformedTasks)
-        
+
         if (transformedTasks.length === 0) {
           if (!pollIntervalRef.current) {
             pollIntervalRef.current = setInterval(() => {
@@ -211,7 +206,7 @@ function DashboardContent() {
     }
 
     fetchTodayTasks()
-    
+
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current)
@@ -234,7 +229,7 @@ function DashboardContent() {
       const response = await apiClient.get('/tasks/today')
       const transformedTasks = response.data.tasks.map((task: any, index: number) => transformTask(task, index))
       setTodayTasks(transformedTasks)
-      
+
       if (transformedTasks.length === 0 && !pollIntervalRef.current) {
         pollIntervalRef.current = setInterval(async () => {
           const res = await apiClient.get('/tasks/today')
@@ -287,7 +282,7 @@ function DashboardContent() {
   // Calculate next rank
   const RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'A+', 'S', 'S+', 'SS+']
   const currentRankIndex = RANK_ORDER.indexOf(user?.rank ?? 'F')
-  const nextRank = currentRankIndex < RANK_ORDER.length - 1 
+  const nextRank = currentRankIndex < RANK_ORDER.length - 1
     ? RANK_ORDER[currentRankIndex + 1]
     : user?.rank ?? 'F'
 
@@ -338,17 +333,17 @@ function DashboardContent() {
             </div>
           )}
 
-        
+
 
           {/* Calorie Log Chart */}
-          <SectionCard 
-            title="Calorie Log" 
-            icon="🔥" 
+          <SectionCard
+            title="Calorie Log"
+            icon="🔥"
             subtitle="Daily energy expenditure"
           >
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart 
-                data={weeklyData} 
+              <BarChart
+                data={weeklyData}
                 margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
               >
                 <defs>
@@ -357,30 +352,30 @@ function DashboardContent() {
                     <stop offset="100%" stopColor="#FF8E53" stopOpacity={0.7} />
                   </linearGradient>
                 </defs>
-                
-                <CartesianGrid 
-                  strokeDasharray="3 3" 
-                  stroke="#ffffff" 
+
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#ffffff"
                   opacity={0.15}
                   vertical={false}
                 />
-                
-                <XAxis 
-                  dataKey="day" 
-                  stroke="#ffffff" 
+
+                <XAxis
+                  dataKey="day"
+                  stroke="#ffffff"
                   tick={{ fill: '#ffffff', fontSize: 13, fontWeight: 500 }}
                   axisLine={{ stroke: '#ffffff', opacity: 0.2 }}
                   tickLine={false}
                 />
-                
-                <YAxis 
-                  stroke="#ffffff" 
+
+                <YAxis
+                  stroke="#ffffff"
                   tick={{ fill: '#ffffff', fontSize: 12, fontWeight: 500 }}
                   axisLine={{ stroke: '#ffffff', opacity: 0.2 }}
                   tickLine={false}
                   width={50}
                 />
-                
+
                 <Tooltip
                   cursor={{ fill: 'rgba(255, 255, 255, 0.1)' }}
                   contentStyle={{
@@ -391,8 +386,8 @@ function DashboardContent() {
                     padding: '12px 16px',
                     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
                   }}
-                  labelStyle={{ 
-                    color: '#ffffff', 
+                  labelStyle={{
+                    color: '#ffffff',
                     fontWeight: 700,
                     fontSize: '14px',
                     marginBottom: '4px'
@@ -404,9 +399,9 @@ function DashboardContent() {
                   }}
                   formatter={(value: any) => [`${value.toLocaleString()} kcal`, 'Calories Burned']}
                 />
-                
-                <Bar 
-                  dataKey="calories" 
+
+                <Bar
+                  dataKey="calories"
                   fill="url(#calorieGradient)"
                   radius={[10, 10, 0, 0]}
                   maxBarSize={60}
@@ -417,16 +412,16 @@ function DashboardContent() {
           </SectionCard>
 
           {/* Power Analysis Radar */}
-          <PowerAnalysisSection/>
+          <PowerAnalysisSection />
 
           {/* Movement Tracking Chart */}
           <div
             className="-mt-2 -my-2"
             style={{ marginTop: '12px', marginBottom: '24px', paddingTop: 0, paddingBottom: 0 }}
           >
-            <MovementTrackingChart weeklyData={undefined}/>
+            <MovementTrackingChart weeklyData={undefined} />
           </div>
-                  
+
 
           {/* AI Coach & Insights Section */}
           <div
