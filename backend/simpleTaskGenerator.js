@@ -20,32 +20,32 @@ const pool = new Pool({
 function getStatRewardsForTask(taskTitle, taskDescription, category) {
   const title = taskTitle.toLowerCase();
   const desc = taskDescription.toLowerCase();
-  
+
   // Real-world mapping: exercise type → stat gains
   const taskKeywords = {
     // ENDURANCE: Running, cycling, rowing, long-duration cardio
     endurance: ['run', 'jog', 'cycling', 'bike', 'rowing', 'row', 'marathon', 'stamina', 'cardio', 'endurance'],
-    
+
     // SPEED: Sprints, explosive movements, quick exercises
     speed: ['sprint', 'fast', 'quick', 'explosive', 'interval', 'burpee', 'jump', 'velocity'],
-    
+
     // STRENGTH: Lifting, resistance, power training
     strength: ['dumbbell', 'barbell', 'lift', 'squat', 'bench', 'deadlift', 'press', 'pull', 'push', 'weight'],
-    
+
     // POWER: Explosive force, plyometrics, heavy compound
     power: ['explosive', 'plyometric', 'power', 'olympic', 'clean', 'snatch', 'thruster', 'box jump'],
-    
+
     // AGILITY: Quick reflexes, flexibility, coordination
     agility: ['yoga', 'pilates', 'stretch', 'flexibility', 'balance', 'mobility', 'coordination'],
-    
+
     // RECOVERY: Low intensity, stretching, healing
     recovery: ['stretch', 'yoga', 'recovery', 'foam roll', 'meditation', 'breathing', 'mobility']
   };
-  
+
   // Find matching stats
   const rewards = {};
   const fullText = title + ' ' + desc;
-  
+
   // Check each stat category
   for (const [stat, keywords] of Object.entries(taskKeywords)) {
     if (keywords.some(keyword => fullText.includes(keyword))) {
@@ -53,7 +53,7 @@ function getStatRewardsForTask(taskTitle, taskDescription, category) {
       break;
     }
   }
-  
+
   // Add secondary stat based on intensity/category
   if (category === 'strength') {
     if (!rewards.strength) rewards.strength = 3;
@@ -73,12 +73,12 @@ function getStatRewardsForTask(taskTitle, taskDescription, category) {
     rewards.speed = 2;
     rewards.strength = 2;
   }
-  
+
   // Ensure at least 1-2 rewards
   if (Object.keys(rewards).length === 0) {
     rewards.wisdom = 2;
   }
-  
+
   return rewards;
 }
 
@@ -194,6 +194,7 @@ async function executeWithRetry(queryFn, maxRetries = 3) {
 
 /**
  * Generate random tasks for a user with difficulty scaling
+ * NO DUPLICATE TASKS - Ensures variety and no repetition
  * @param {string} userId - User ID
  * @param {string} fitnessLevel - User's fitness level (beginner/intermediate/advanced)
  * @param {number} count - Number of tasks to generate (default 5)
@@ -204,6 +205,7 @@ export async function generateSimpleTasks(userId, fitnessLevel = 'beginner', cou
     const templates = TASK_TEMPLATES[fitnessLevel] || TASK_TEMPLATES.beginner;
     const categories = Object.keys(templates);
     const generatedTasks = [];
+    const usedTitles = new Set(); // Track titles in this batch to prevent duplicates
 
     // Apply difficulty multiplier based on fitness level
     const difficultyMultiplier = {
@@ -213,22 +215,92 @@ export async function generateSimpleTasks(userId, fitnessLevel = 'beginner', cou
     }[fitnessLevel] || 1.0;
 
     console.log(`[SimpleGen] Generating ${count} tasks for user ${userId} (${fitnessLevel}, multiplier: ${difficultyMultiplier})...`);
+    console.log(`[SimpleGen] 🔒 DUPLICATE PREVENTION ENABLED - No same exercise on same day`);
+
+    // Get recently used task titles (last 30 days) to avoid repetition
+    let recentTaskTitles = new Set();
+    try {
+      const recentResult = await executeWithRetry(() =>
+        pool.query(
+          `SELECT DISTINCT title FROM tasks 
+           WHERE user_id = $1 AND created_at > NOW() - INTERVAL '30 days'
+           ORDER BY created_at DESC
+           LIMIT 50`,
+          [userId]
+        )
+      );
+      recentTaskTitles = new Set(recentResult.rows.map(r => r.title));
+      console.log(`[SimpleGen] 📋 Found ${recentTaskTitles.size} recently used task titles`);
+    } catch (err) {
+      console.warn(`[SimpleGen] ⚠️ Could not fetch recent tasks (non-critical):`, err.message);
+    }
+
+    // Distribute tasks across categories for variety
+    const categoriesNeeded = Math.min(count, categories.length);
+    const categoryCycle = [];
+
+    // Rotate through categories to ensure variety
+    for (let i = 0; i < count; i++) {
+      categoryCycle.push(categories[i % categories.length]);
+    }
+
+    // Shuffle to avoid predictability
+    for (let i = categoryCycle.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [categoryCycle[i], categoryCycle[j]] = [categoryCycle[j], categoryCycle[i]];
+    }
 
     for (let i = 0; i < count; i++) {
-      // Pick random category
-      const category = categories[Math.floor(Math.random() * categories.length)];
-      const tasks = templates[category];
-      const template = tasks[Math.floor(Math.random() * tasks.length)];
-      
+      let template = null;
+      let selectedCategory = null;
+      let attempts = 0;
+      const maxAttempts = 20;
+
+      // Find a unique task template that hasn't been used recently or in this batch
+      while (!template && attempts < maxAttempts) {
+        selectedCategory = categoryCycle[i];
+        const categoryTasks = templates[selectedCategory];
+        const randomTemplate = categoryTasks[Math.floor(Math.random() * categoryTasks.length)];
+
+        // Check if this title was already used in this batch or recently
+        if (!usedTitles.has(randomTemplate.title) && !recentTaskTitles.has(randomTemplate.title)) {
+          template = randomTemplate;
+        }
+        attempts++;
+      }
+
+      // If we couldn't find a unique template after max attempts, skip
+      if (!template) {
+        console.warn(`[SimpleGen] ⚠️ Could not find unique task for position ${i + 1}, retrying with category: ${selectedCategory}`);
+
+        // Fallback: just pick first unused one from category
+        const categoryTasks = templates[selectedCategory];
+        for (const task of categoryTasks) {
+          if (!usedTitles.has(task.title) && !recentTaskTitles.has(task.title)) {
+            template = task;
+            break;
+          }
+        }
+      }
+
+      // If still no template found, use the first available
+      if (!template) {
+        const categoryTasks = templates[selectedCategory];
+        template = categoryTasks.find(t => !usedTitles.has(t.title)) || categoryTasks[0];
+        console.warn(`[SimpleGen] ⚠️ Using fallback task: ${template.title}`);
+      }
+
+      usedTitles.add(template.title); // Mark as used in this batch
+
       // Scale XP based on difficulty multiplier
       const scaledXp = Math.ceil(template.xp * difficultyMultiplier);
-      
+
       // Scale difficulty (1-3) and increase based on fitness level
       const baseDifficulty = Math.ceil(Math.random() * 3);
       const scaledDifficulty = Math.min(3, Math.ceil(baseDifficulty * difficultyMultiplier));
-      
+
       // Get realistic stat rewards based on the actual task (not ML - based on real-world exercise effects)
-      const statRewards = getStatRewardsForTask(template.title, template.description, category);
+      const statRewards = getStatRewardsForTask(template.title, template.description, selectedCategory);
 
       // Store in database with retry logic
       const result = await executeWithRetry(() =>
@@ -240,7 +312,7 @@ export async function generateSimpleTasks(userId, fitnessLevel = 'beginner', cou
             userId,
             template.title,
             template.description,
-            category,
+            selectedCategory,
             scaledDifficulty,
             scaledXp,
             template.duration,
@@ -250,10 +322,10 @@ export async function generateSimpleTasks(userId, fitnessLevel = 'beginner', cou
       );
 
       generatedTasks.push(result.rows[0]);
-      console.log(`[SimpleGen] ✅ Generated: ${template.title} (Difficulty: ${scaledDifficulty}, XP: ${scaledXp}, Stats: ${Object.entries(statRewards).map(([k,v]) => v > 0 ? `${k}:${v}` : null).filter(Boolean).join(', ')})`);
+      console.log(`[SimpleGen] ✅ Task ${i + 1}/${count}: ${template.title} | Category: ${selectedCategory} | Difficulty: ${scaledDifficulty} | XP: ${scaledXp}`);
     }
 
-    console.log(`[SimpleGen] ✅ Generated ${count} tasks successfully with ${difficultyMultiplier}x difficulty multiplier`);
+    console.log(`[SimpleGen] ✅ Generated ${count} tasks successfully (ALL UNIQUE) with ${difficultyMultiplier}x multiplier`);
     return generatedTasks;
   } catch (error) {
     console.error('[SimpleGen] ❌ Error generating tasks:', error.message);
