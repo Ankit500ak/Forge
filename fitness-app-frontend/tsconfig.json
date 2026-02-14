@@ -35,7 +35,8 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "out/types/**/*.ts",
-    "out/dev/types/**/*.ts"
+    "out/dev/types/**/*.ts",
+    "components/camera/CameraFoodDetection.jsx"
   ],
   "exclude": [
     "node_modules"

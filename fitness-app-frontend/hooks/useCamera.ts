@@ -284,7 +284,16 @@ export function useCamera(): CameraHookReturn {
 
             // Get backend URL from environment or use default
             const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-            const response = await fetch(`${backendUrl}/api/camera/capture`, {
+
+            // Try detect-and-log endpoint which includes detection
+            // Add userId if available
+            const userId = typeof window !== 'undefined'
+                ? localStorage.getItem('userId') || 'anonymous-' + Date.now()
+                : 'anonymous-' + Date.now();
+            formData.append('userId', userId);
+            formData.append('confidenceThreshold', confidenceThreshold.toString());
+
+            const response = await fetch(`${backendUrl}/api/camera/detect-and-log`, {
                 method: 'POST',
                 body: formData
             });
@@ -299,7 +308,22 @@ export function useCamera(): CameraHookReturn {
             }
 
             try {
-                const result: CaptureResult = await response.json();
+                const data = await response.json();
+
+                // Map detect-and-log response to CaptureResult format
+                const result: CaptureResult = {
+                    detected_food: data.detection?.detected_food || 'Unknown',
+                    confidence: data.detection?.confidence || 0,
+                    nutrition: data.detection?.nutrition || {
+                        calories: 0,
+                        protein: 0,
+                        carbs: 0,
+                        fats: 0,
+                        fiber: 0
+                    },
+                    source: data.detection?.source || 'ai'
+                };
+
                 setLastCapture(result);
                 setIsLoading(false);
                 return result;
