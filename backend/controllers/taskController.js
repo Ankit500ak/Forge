@@ -364,16 +364,43 @@ export const completeTask = async (req, res) => {
       return res.status(400).json({ message: 'Invalid task ID format. Must be a valid ID or UUID.' });
     }
 
-    // Get task
-    const { data: task, error: taskError } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('id', taskId)
-      .eq('user_id', userId)
-      .single();
+    console.log(`[Tasks] Task ID type: ${isNumeric ? 'numeric' : 'UUID'}`);
+
+    // Try to get task - handle both numeric and UUID IDs
+    let task = null;
+    let taskError = null;
+
+    if (isUUID) {
+      // Direct UUID query
+      const result = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .eq('user_id', userId)
+        .single();
+      task = result.data;
+      taskError = result.error;
+    } else if (isNumeric) {
+      // For numeric IDs, fetch all user tasks and filter in-memory
+      console.log(`[Tasks] Attempting to find numeric task ID: ${taskId}`);
+      const result = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (result.error) {
+        taskError = result.error;
+      } else if (result.data) {
+        // Try to match by ID (converted to string for comparison)
+        task = result.data.find(t => String(t.id) === String(taskId));
+        if (!task) {
+          taskError = { code: 'PGRST116', message: 'Task not found' };
+        }
+      }
+    }
 
     if (taskError) {
-      if (taskError.code === 'PGRST116') {
+      if (taskError.code === 'PGRST116' || taskError.message?.includes('not found')) {
         console.log(`[Tasks] Task not found: ${taskId}`);
         return res.status(404).json({ message: 'Task not found' });
       }
@@ -384,309 +411,295 @@ export const completeTask = async (req, res) => {
       });
     }
 
-    console.log(`[Tasks] Found task: ${task.title}, XP reward: ${task.xp_reward}`);
-
-    if (task.completed) {
-      return res.status(400).json({ message: 'Task already completed' });
+    if (!task) {
+      console.log(`[Tasks] Task not found: ${taskId}`);
+      return res.status(404).json({ message: 'Task not found' });
+    } else {
+      // It's not JSON, skip it
+      console.warn(`[Tasks] Warning: stat_rewards is not valid JSON: "${task.stat_rewards}"`);
+      statRewards = {};
     }
-
-    const xpReward = parseInt(task.xp_reward) || 0;
-
-    // 👑 GET STAT REWARDS from task
-    let statRewards = {};
-    if (task.stat_rewards) {
-      try {
-        // Handle different formats: string, object, or JSON string
-        if (typeof task.stat_rewards === 'string') {
-          // Check if it's a valid JSON string
-          if (task.stat_rewards.startsWith('{') || task.stat_rewards.startsWith('[')) {
-            statRewards = JSON.parse(task.stat_rewards);
-          } else {
-            // It's not JSON, skip it
-            console.warn(`[Tasks] Warning: stat_rewards is not valid JSON: "${task.stat_rewards}"`);
-            statRewards = {};
-          }
-        } else if (typeof task.stat_rewards === 'object' && task.stat_rewards !== null) {
-          // Already an object, use as-is
-          statRewards = task.stat_rewards;
-        }
-      } catch (parseErr) {
-        console.warn(`[Tasks] Warning: Could not parse stat_rewards for task ${task.id}:`, parseErr.message);
-        statRewards = {};
-      }
+  } else if (typeof task.stat_rewards === 'object' && task.stat_rewards !== null) {
+    // Already an object, use as-is
+    statRewards = task.stat_rewards;
+  }
+} catch (parseErr) {
+  console.warn(`[Tasks] Warning: Could not parse stat_rewards for task ${task.id}:`, parseErr.message);
+  statRewards = {};
+}
     }
-    console.log(`[Tasks] 📊 Stat rewards for "${task.title}":`, statRewards);
+console.log(`[Tasks] 📊 Stat rewards for "${task.title}":`, statRewards);
 
-    // Mark task as completed
-    const { error: completeError } = await supabase
-      .from('tasks')
-      .update({
-        completed: true,
-        completed_at: new Date().toISOString()
-      })
-      .eq('id', taskId)
-      .eq('user_id', userId); // Extra safety check
+// Mark task as completed
+const { error: completeError } = await supabase
+  .from('tasks')
+  .update({
+    completed: true,
+    completed_at: new Date().toISOString()
+  })
+  .eq('id', taskId)
+  .eq('user_id', userId); // Extra safety check
 
-    if (completeError) {
-      console.error('[Tasks] Error marking task as completed:', completeError);
-      return res.status(500).json({
-        message: 'Failed to complete task',
-        error: completeError.message
-      });
-    }
+if (completeError) {
+  console.error('[Tasks] Error marking task as completed:', completeError);
+  return res.status(500).json({
+    message: 'Failed to complete task',
+    error: completeError.message
+  });
+}
 
-    // Ensure user_progression and user_stats rows exist
-    try {
-      // Check if progression row exists
-      const { data: progCheck, error: progCheckError } = await supabase
-        .from('user_progression')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+// Ensure user_progression and user_stats rows exist
+try {
+  // Check if progression row exists
+  const { data: progCheck, error: progCheckError } = await supabase
+    .from('user_progression')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
 
-      if (progCheckError) {
-        console.error('[Tasks] Error checking progression:', progCheckError);
-        throw new Error(`Failed to check user progression: ${progCheckError.message}`);
-      }
+  if (progCheckError) {
+    console.error('[Tasks] Error checking progression:', progCheckError);
+    throw new Error(`Failed to check user progression: ${progCheckError.message}`);
+  }
 
-      if (!progCheck) {
-        console.log(`[Tasks] Creating missing progression row for user ${userId}`);
-        const { error: progInsertError } = await supabase
-          .from('user_progression')
-          .insert({
-            user_id: userId,
-            level: 1,
-            stat_points: 0,
-            xp_today: 0,
-            rank: 'F',
-            total_xp: 0,
-            weekly_xp: 0,
-            monthly_xp: 0,
-            experience_points: 0,
-            next_level_percent: 0,
-            current_streak: 0,
-            longest_streak: 0,
-            tasks_completed: 0,
-            prestige: 0,
-            joined_date: new Date().toISOString(),
-            last_active: new Date().toISOString(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-
-        if (progInsertError) {
-          console.error('[Tasks] Error creating progression:', progInsertError);
-          throw new Error(`Failed to create user progression: ${progInsertError.message}`);
-        }
-      }
-
-      // Check if stats row exists
-      const { data: statsCheck, error: statsCheckError } = await supabase
-        .from('user_stats')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (statsCheckError) {
-        console.error('[Tasks] Error checking stats:', statsCheckError);
-        throw new Error(`Failed to check user stats: ${statsCheckError.message}`);
-      }
-
-      if (!statsCheck) {
-        console.log(`[Tasks] Creating missing stats row for user ${userId}`);
-        const { error: statsInsertError } = await supabase
-          .from('user_stats')
-          .insert({
-            user_id: userId,
-            user_id_ref: userId,
-            bench_press: 0,
-            deadlift: 0,
-            squat: 0,
-            total_lifted: 0,
-            strength_goal: 0,
-            distance_run_km: 0,
-            calories_burned: 0,
-            cardio_sessions: 0,
-            longest_run_km: 0,
-            strength: 0,
-            speed: 0,
-            endurance: 0,
-            agility: 0,
-            power: 0,
-            recovery: 0,
-            reflex_time: 0,
-            flexibility: 0,
-            bmi: 0,
-            resting_heart_rate: 0,
-            sleep_quality: 0,
-            stress_level: 0,
-            health: 10,
-            base_stats: 10,
-            experience_points: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-
-        if (statsInsertError) {
-          console.error('[Tasks] Error creating stats:', statsInsertError);
-          throw new Error(`Failed to create user stats: ${statsInsertError.message}`);
-        }
-      }
-    } catch (initErr) {
-      console.error(`[Tasks] Error initializing user tables:`, initErr.message);
-      console.error('[Tasks] Stack trace:', initErr.stack);
-      return res.status(500).json({
-        message: 'Failed to initialize user data',
-        error: initErr.message
-      });
-    }
-
-    // Get current progression values
-    const { data: currentProg, error: currentProgError } = await supabase
+  if (!progCheck) {
+    console.log(`[Tasks] Creating missing progression row for user ${userId}`);
+    const { error: progInsertError } = await supabase
       .from('user_progression')
-      .select('xp_today, total_xp, weekly_xp, monthly_xp, tasks_completed')
+      .insert({
+        user_id: userId,
+        level: 1,
+        stat_points: 0,
+        xp_today: 0,
+        rank: 'F',
+        total_xp: 0,
+        weekly_xp: 0,
+        monthly_xp: 0,
+        experience_points: 0,
+        next_level_percent: 0,
+        current_streak: 0,
+        longest_streak: 0,
+        tasks_completed: 0,
+        prestige: 0,
+        joined_date: new Date().toISOString(),
+        last_active: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (progInsertError) {
+      console.error('[Tasks] Error creating progression:', progInsertError);
+      throw new Error(`Failed to create user progression: ${progInsertError.message}`);
+    }
+  }
+
+  // Check if stats row exists
+  const { data: statsCheck, error: statsCheckError } = await supabase
+    .from('user_stats')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (statsCheckError) {
+    console.error('[Tasks] Error checking stats:', statsCheckError);
+    throw new Error(`Failed to check user stats: ${statsCheckError.message}`);
+  }
+
+  if (!statsCheck) {
+    console.log(`[Tasks] Creating missing stats row for user ${userId}`);
+    const { error: statsInsertError } = await supabase
+      .from('user_stats')
+      .insert({
+        user_id: userId,
+        user_id_ref: userId,
+        bench_press: 0,
+        deadlift: 0,
+        squat: 0,
+        total_lifted: 0,
+        strength_goal: 0,
+        distance_run_km: 0,
+        calories_burned: 0,
+        cardio_sessions: 0,
+        longest_run_km: 0,
+        strength: 0,
+        speed: 0,
+        endurance: 0,
+        agility: 0,
+        power: 0,
+        recovery: 0,
+        reflex_time: 0,
+        flexibility: 0,
+        bmi: 0,
+        resting_heart_rate: 0,
+        sleep_quality: 0,
+        stress_level: 0,
+        health: 10,
+        base_stats: 10,
+        experience_points: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (statsInsertError) {
+      console.error('[Tasks] Error creating stats:', statsInsertError);
+      throw new Error(`Failed to create user stats: ${statsInsertError.message}`);
+    }
+  }
+} catch (initErr) {
+  console.error(`[Tasks] Error initializing user tables:`, initErr.message);
+  console.error('[Tasks] Stack trace:', initErr.stack);
+  return res.status(500).json({
+    message: 'Failed to initialize user data',
+    error: initErr.message
+  });
+}
+
+// Get current progression values
+const { data: currentProg, error: currentProgError } = await supabase
+  .from('user_progression')
+  .select('xp_today, total_xp, weekly_xp, monthly_xp, tasks_completed')
+  .eq('user_id', userId)
+  .single();
+
+if (currentProgError) {
+  console.error('[Tasks] Error fetching current progression:', currentProgError);
+  return res.status(500).json({
+    message: 'Failed to fetch user progression',
+    error: currentProgError.message
+  });
+}
+
+// Add XP to user progression and increment task counter
+try {
+  const { error: progUpdateError } = await supabase
+    .from('user_progression')
+    .update({
+      xp_today: (currentProg.xp_today || 0) + xpReward,
+      total_xp: (currentProg.total_xp || 0) + xpReward,
+      weekly_xp: (currentProg.weekly_xp || 0) + xpReward,
+      monthly_xp: (currentProg.monthly_xp || 0) + xpReward,
+      tasks_completed: (currentProg.tasks_completed || 0) + 1,
+      last_active: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', userId);
+
+  if (progUpdateError) {
+    console.error('[Tasks] Error updating progression:', progUpdateError);
+    throw new Error(`Failed to update user progression: ${progUpdateError.message}`);
+  }
+
+  console.log(`[Tasks] ✅ XP updated: +${xpReward} XP`);
+} catch (progErr) {
+  console.error(`[Tasks] Error updating progression:`, progErr.message);
+  console.error('[Tasks] Stack trace:', progErr.stack);
+  return res.status(500).json({
+    message: 'Failed to update progression',
+    error: progErr.message
+  });
+}
+
+// 👑 UPDATE USER STATS with stat rewards from task
+try {
+  // Whitelist of valid stat columns (6-stat system)
+  const validStats = ['strength', 'speed', 'endurance', 'agility', 'power', 'recovery'];
+
+  const appliedStats = {};
+  const updateData = { updated_at: new Date().toISOString() };
+
+  // Only proceed if there are stat rewards
+  if (Object.keys(statRewards).length > 0) {
+    // Get current stat values
+    const { data: currentStats, error: currentStatsError } = await supabase
+      .from('user_stats')
+      .select(validStats.join(', '))
       .eq('user_id', userId)
       .single();
 
-    if (currentProgError) {
-      console.error('[Tasks] Error fetching current progression:', currentProgError);
-      return res.status(500).json({
-        message: 'Failed to fetch user progression',
-        error: currentProgError.message
-      });
+    if (currentStatsError) {
+      console.error('[Tasks] Error fetching current stats:', currentStatsError);
+      throw new Error(`Failed to fetch current stats: ${currentStatsError.message}`);
     }
 
-    // Add XP to user progression and increment task counter
-    try {
-      const { error: progUpdateError } = await supabase
-        .from('user_progression')
-        .update({
-          xp_today: (currentProg.xp_today || 0) + xpReward,
-          total_xp: (currentProg.total_xp || 0) + xpReward,
-          weekly_xp: (currentProg.weekly_xp || 0) + xpReward,
-          monthly_xp: (currentProg.monthly_xp || 0) + xpReward,
-          tasks_completed: (currentProg.tasks_completed || 0) + 1,
-          last_active: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+    // Build update object based on stat_rewards (with validation)
+    for (const [stat, value] of Object.entries(statRewards)) {
+      // Validate column name
+      if (!validStats.includes(stat)) {
+        console.warn(`[Tasks] Skipping invalid stat column: ${stat}`);
+        continue;
+      }
+
+      const currentValue = parseInt(currentStats[stat]) || 0;
+      const rewardValue = parseInt(value) || 0;
+
+      if (rewardValue !== 0) {
+        // Ensure stats don't go below 0
+        const newValue = Math.max(0, currentValue + rewardValue);
+        updateData[stat] = newValue;
+        appliedStats[stat] = rewardValue;
+      }
+    }
+
+    // Only update if there are stat changes
+    if (Object.keys(appliedStats).length > 0) {
+      const { error: statsUpdateError } = await supabase
+        .from('user_stats')
+        .update(updateData)
         .eq('user_id', userId);
 
-      if (progUpdateError) {
-        console.error('[Tasks] Error updating progression:', progUpdateError);
-        throw new Error(`Failed to update user progression: ${progUpdateError.message}`);
+      if (statsUpdateError) {
+        console.error('[Tasks] Error updating stats:', statsUpdateError);
+        throw new Error(`Failed to update stats: ${statsUpdateError.message}`);
       }
 
-      console.log(`[Tasks] ✅ XP updated: +${xpReward} XP`);
-    } catch (progErr) {
-      console.error(`[Tasks] Error updating progression:`, progErr.message);
-      console.error('[Tasks] Stack trace:', progErr.stack);
-      return res.status(500).json({
-        message: 'Failed to update progression',
-        error: progErr.message
-      });
+      console.log(`[Tasks] ✅ Stat rewards applied to user: ${JSON.stringify(appliedStats)}`);
     }
-
-    // 👑 UPDATE USER STATS with stat rewards from task
-    try {
-      // Whitelist of valid stat columns (6-stat system)
-      const validStats = ['strength', 'speed', 'endurance', 'agility', 'power', 'recovery'];
-
-      const appliedStats = {};
-      const updateData = { updated_at: new Date().toISOString() };
-
-      // Only proceed if there are stat rewards
-      if (Object.keys(statRewards).length > 0) {
-        // Get current stat values
-        const { data: currentStats, error: currentStatsError } = await supabase
-          .from('user_stats')
-          .select(validStats.join(', '))
-          .eq('user_id', userId)
-          .single();
-
-        if (currentStatsError) {
-          console.error('[Tasks] Error fetching current stats:', currentStatsError);
-          throw new Error(`Failed to fetch current stats: ${currentStatsError.message}`);
-        }
-
-        // Build update object based on stat_rewards (with validation)
-        for (const [stat, value] of Object.entries(statRewards)) {
-          // Validate column name
-          if (!validStats.includes(stat)) {
-            console.warn(`[Tasks] Skipping invalid stat column: ${stat}`);
-            continue;
-          }
-
-          const currentValue = parseInt(currentStats[stat]) || 0;
-          const rewardValue = parseInt(value) || 0;
-
-          if (rewardValue !== 0) {
-            // Ensure stats don't go below 0
-            const newValue = Math.max(0, currentValue + rewardValue);
-            updateData[stat] = newValue;
-            appliedStats[stat] = rewardValue;
-          }
-        }
-
-        // Only update if there are stat changes
-        if (Object.keys(appliedStats).length > 0) {
-          const { error: statsUpdateError } = await supabase
-            .from('user_stats')
-            .update(updateData)
-            .eq('user_id', userId);
-
-          if (statsUpdateError) {
-            console.error('[Tasks] Error updating stats:', statsUpdateError);
-            throw new Error(`Failed to update stats: ${statsUpdateError.message}`);
-          }
-
-          console.log(`[Tasks] ✅ Stat rewards applied to user: ${JSON.stringify(appliedStats)}`);
-        }
-      }
-    } catch (statErr) {
-      console.error(`[Tasks] Error updating stats:`, statErr.message);
-      console.error('[Tasks] Stack trace:', statErr.stack);
-      // Don't fail the task completion, just log the error
-    }
-
-    // Get updated progression
-    const { data: updated, error: updatedError } = await supabase
-      .from('user_progression')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (updatedError) {
-      console.error('[Tasks] Error fetching updated progression:', updatedError);
-      // Don't fail, just return the values we know
-    }
-
-    console.log(`[Tasks] ✅ Task completed successfully! Added ${xpReward} XP`);
-
-    res.json({
-      message: 'Task completed successfully',
-      task: {
-        id: task.id,
-        title: task.title,
-        xpGain: xpReward,
-        category: task.category,
-        statRewards: statRewards
-      },
-      progression: {
-        xp_today: updated?.xp_today || (currentProg.xp_today + xpReward),
-        total_xp: updated?.total_xp || (currentProg.total_xp + xpReward),
-        weekly_xp: updated?.weekly_xp || (currentProg.weekly_xp + xpReward),
-        monthly_xp: updated?.monthly_xp || (currentProg.monthly_xp + xpReward),
-        tasks_completed: updated?.tasks_completed || ((currentProg.tasks_completed || 0) + 1)
-      }
-    });
-  } catch (err) {
-    console.error('[Tasks] Error completing task:', err.message);
-    console.error('[Tasks] Stack trace:', err.stack);
-    res.status(500).json({
-      message: 'Failed to complete task',
-      error: err.message
-    });
   }
+} catch (statErr) {
+  console.error(`[Tasks] Error updating stats:`, statErr.message);
+  console.error('[Tasks] Stack trace:', statErr.stack);
+  // Don't fail the task completion, just log the error
+}
+
+// Get updated progression
+const { data: updated, error: updatedError } = await supabase
+  .from('user_progression')
+  .select('*')
+  .eq('user_id', userId)
+  .single();
+
+if (updatedError) {
+  console.error('[Tasks] Error fetching updated progression:', updatedError);
+  // Don't fail, just return the values we know
+}
+
+console.log(`[Tasks] ✅ Task completed successfully! Added ${xpReward} XP`);
+
+res.json({
+  message: 'Task completed successfully',
+  task: {
+    id: task.id,
+    title: task.title,
+    xpGain: xpReward,
+    category: task.category,
+    statRewards: statRewards
+  },
+  progression: {
+    xp_today: updated?.xp_today || (currentProg.xp_today + xpReward),
+    total_xp: updated?.total_xp || (currentProg.total_xp + xpReward),
+    weekly_xp: updated?.weekly_xp || (currentProg.weekly_xp + xpReward),
+    monthly_xp: updated?.monthly_xp || (currentProg.monthly_xp + xpReward),
+    tasks_completed: updated?.tasks_completed || ((currentProg.tasks_completed || 0) + 1)
+  }
+});
+  } catch (err) {
+  console.error('[Tasks] Error completing task:', err.message);
+  console.error('[Tasks] Stack trace:', err.stack);
+  res.status(500).json({
+    message: 'Failed to complete task',
+    error: err.message
+  });
+}
 };
 
 // Create a new task (admin or user can create for themselves)
