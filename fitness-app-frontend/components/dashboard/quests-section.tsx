@@ -7,25 +7,25 @@ import apiClient from "@/lib/api-client";
 //   Between those two the value grows linearly with viewport width.
 // ─────────────────────────────────────────────────────────────────────────────
 const fluid = (min: number, max: number) => {
-  const slope     = ((max - min) / 880) * 100;           // vw coefficient
+  const slope = ((max - min) / 880) * 100;           // vw coefficient
   const intercept = min - (max - min) * (320 / 880);    // px offset
   return `clamp(${min}px, ${slope.toFixed(3)}vw + ${intercept.toFixed(2)}px, ${max}px)`;
 };
 
 // ─── Theme ──────────────────────────────────────────────────────────────────
 const T = {
-  bg         : "#0a0a0f",
-  cardBg     : "#12121a",
-  cardBorder : "#1e1e2e",
-  accent     : "#c084fc",
-  accentGlow : "rgba(192,132,252,0.35)",
-  gold       : "#f59e0b",
-  goldGlow   : "rgba(245,158,11,0.4)",
-  text       : "#e2e8f0",
-  muted      : "#64748b",
-  faint      : "#3f4156",
-  green      : "#4ade80",
-  greenGlow  : "rgba(74,222,128,0.35)",
+  bg: "#0a0a0f",
+  cardBg: "#12121a",
+  cardBorder: "#1e1e2e",
+  accent: "#c084fc",
+  accentGlow: "rgba(192,132,252,0.35)",
+  gold: "#f59e0b",
+  goldGlow: "rgba(245,158,11,0.4)",
+  text: "#e2e8f0",
+  muted: "#64748b",
+  faint: "#3f4156",
+  green: "#4ade80",
+  greenGlow: "rgba(74,222,128,0.35)",
 };
 
 // ─── Fluid Token Map ────────────────────────────────────────────────────────
@@ -33,58 +33,58 @@ const T = {
 //  First number = value at 320 px viewport.  Second = value at 1200 px.
 const S = {
   /* fonts ---------------------------------------------------------- */
-  fontXS      : fluid(8.5,  11),     // tiny labels / badge text
-  fontSm      : fluid(10.5, 13),     // meta lines, details body
-  fontBase    : fluid(13,   15.5),   // quest name
-  fontMd      : fluid(14.5, 17.5),   // XP number on card
-  fontLg      : fluid(16.5, 20.5),   // pill stat values
-  fontTitle   : fluid(19.5, 25),     // "Active Quests" heading
-  fontRing    : fluid(14,   17.5),   // ring centre %
+  fontXS: fluid(8.5, 11),     // tiny labels / badge text
+  fontSm: fluid(10.5, 13),     // meta lines, details body
+  fontBase: fluid(13, 15.5),   // quest name
+  fontMd: fluid(14.5, 17.5),   // XP number on card
+  fontLg: fluid(16.5, 20.5),   // pill stat values
+  fontTitle: fluid(19.5, 25),     // "Active Quests" heading
+  fontRing: fluid(14, 17.5),   // ring centre %
 
   /* page-level spacing ---------------------------------------------- */
-  pagePad     : fluid(16,   28),     // left / right page padding
-  pageTop     : fluid(48,   64),     // top safe-area padding
-  pageBot     : fluid(32,   48),     // bottom padding
+  pagePad: fluid(16, 28),     // left / right page padding
+  pageTop: fluid(48, 64),     // top safe-area padding
+  pageBot: fluid(32, 48),     // bottom padding
 
   /* card spacing ---------------------------------------------------- */
-  cardPad     : fluid(12,   17),     // inner card padding (all sides)
-  cardGap     : fluid(10,   14),     // flex gap between card children
-  cardMargin  : fluid(10,   14),     // vertical space between cards
+  cardPad: fluid(12, 17),     // inner card padding (all sides)
+  cardGap: fluid(10, 14),     // flex gap between card children
+  cardMargin: fluid(10, 14),     // vertical space between cards
 
   /* header spacing -------------------------------------------------- */
-  headerGap   : fluid(7,    11),     // emoji ↔ title gap
-  headerMeta  : fluid(5,    8),      // title → subtitle margin
+  headerGap: fluid(7, 11),     // emoji ↔ title gap
+  headerMeta: fluid(5, 8),      // title → subtitle margin
 
   /* pill / summary card --------------------------------------------- */
-  pillGap     : fluid(6,    10),     // gap between the three pills
-  pillPadX    : fluid(8,    14),     // pill horizontal padding
-  pillPadY    : fluid(6.5,  10.5),   // pill vertical padding
-  pillMarginTop: fluid(14,  20),     // pills ↔ title-row margin
+  pillGap: fluid(6, 10),     // gap between the three pills
+  pillPadX: fluid(8, 14),     // pill horizontal padding
+  pillPadY: fluid(6.5, 10.5),   // pill vertical padding
+  pillMarginTop: fluid(14, 20),     // pills ↔ title-row margin
 
   /* detail panel ---------------------------------------------------- */
-  detailPad   : fluid(11,   17),     // expanded-detail vertical padding
+  detailPad: fluid(11, 17),     // expanded-detail vertical padding
 
   /* border radii ---------------------------------------------------- */
-  rCard       : fluid(13,   18),
-  rPill       : fluid(9,    13),
-  rIcon       : fluid(10,   14),
-  rCheck      : fluid(6,    9),
-  rBadge      : fluid(14,   22),     // category tag pill
+  rCard: fluid(13, 18),
+  rPill: fluid(9, 13),
+  rIcon: fluid(10, 14),
+  rCheck: fluid(6, 9),
+  rBadge: fluid(14, 22),     // category tag pill
 
   /* interactive elements -------------------------------------------- */
-  checkSize   : fluid(22,   28),     // checkbox w & h
-  iconSize    : fluid(38,   48),     // icon bubble w & h
-  iconFont    : fluid(18,   23),     // emoji inside bubble
-  chevronBox  : fluid(26,   34),     // chevron hit-box
-  chevronIcon : fluid(9,    12),     // chevron SVG size
-  headerEmoji : fluid(20,   26),     // ⚔️ emoji font size
+  checkSize: fluid(22, 28),     // checkbox w & h
+  iconSize: fluid(38, 48),     // icon bubble w & h
+  iconFont: fluid(18, 23),     // emoji inside bubble
+  chevronBox: fluid(26, 34),     // chevron hit-box
+  chevronIcon: fluid(9, 12),     // chevron SVG size
+  headerEmoji: fluid(20, 26),     // ⚔️ emoji font size
 
   /* progress ring --------------------------------------------------- */
-  ringSize    : fluid(56,   78),     // outer diameter
+  ringSize: fluid(56, 78),     // outer diameter
 
   /* celebration overlay --------------------------------------------- */
-  celebRing   : fluid(50,   72),
-  celebFont   : fluid(18,   26),
+  celebRing: fluid(50, 72),
+  celebFont: fluid(18, 26),
 };
 
 // ─── Quest Type ─────────────────────────────────────────────────────────────
@@ -106,11 +106,11 @@ type Quest = {
 
 // ─── Sample Data ────────────────────────────────────────────────────────────
 const QUESTS = [
-  { id:1, name:"Dawn Patrol",      icon:"🌅", duration:"15 min",  xp:120, completed:true,  details:"Complete your morning meditation and journal entry to start the day with clarity and intention.", category:"Mindfulness" },
-  { id:2, name:"Iron Will",        icon:"💪", duration:"45 min",  xp:350, completed:false, details:"Hit the gym and push through your strength training routine. Focus on progressive overload.",     category:"Fitness"     },
-  { id:3, name:"Knowledge Seeker", icon:"📖", duration:"30 min",  xp:200, completed:false, details:"Read for 30 minutes on your chosen topic and take notes on the 3 key takeaways.",                category:"Learning"    },
-  { id:4, name:"Hydration Hero",   icon:"💧", duration:"All Day", xp:80,  completed:true,  details:"Drink at least 8 glasses of water throughout the day. Track each one as you go.",                category:"Health"      },
-  { id:5, name:"Code Warrior",     icon:"⚡", duration:"60 min",  xp:500, completed:false, details:"Work on your coding project. Ship at least one meaningful commit before the day ends.",           category:"Career"      },
+  { id: 1, name: "Dawn Patrol", icon: "🌅", duration: "15 min", xp: 120, completed: true, details: "Complete your morning meditation and journal entry to start the day with clarity and intention.", category: "Mindfulness" },
+  { id: 2, name: "Iron Will", icon: "💪", duration: "45 min", xp: 350, completed: false, details: "Hit the gym and push through your strength training routine. Focus on progressive overload.", category: "Fitness" },
+  { id: 3, name: "Knowledge Seeker", icon: "📖", duration: "30 min", xp: 200, completed: false, details: "Read for 30 minutes on your chosen topic and take notes on the 3 key takeaways.", category: "Learning" },
+  { id: 4, name: "Hydration Hero", icon: "💧", duration: "All Day", xp: 80, completed: true, details: "Drink at least 8 glasses of water throughout the day. Track each one as you go.", category: "Health" },
+  { id: 5, name: "Code Warrior", icon: "⚡", duration: "60 min", xp: 500, completed: false, details: "Work on your coding project. Ship at least one meaningful commit before the day ends.", category: "Career" },
 ];
 
 // ─── Particle ───────────────────────────────────────────────────────────────
@@ -134,38 +134,38 @@ function Particle({ style }: { style?: React.CSSProperties }) {
 // Uses a fixed viewBox so the SVG scales to whatever fluid container size
 // is imposed — no px dimensions on the <svg> element itself.
 function ProgressRing({ percent }: { percent: number }) {
-  const VB     = 100;                        // viewBox units (arbitrary)
-  const SW     = 7;                          // stroke width in viewBox units
-  const R      = (VB - SW) / 2;
-  const CIRC   = 2 * Math.PI * R;
+  const VB = 100;                        // viewBox units (arbitrary)
+  const SW = 7;                          // stroke width in viewBox units
+  const R = (VB - SW) / 2;
+  const CIRC = 2 * Math.PI * R;
   const offset = CIRC - (percent / 100) * CIRC;
 
   return (
-    <div style={{ width: S.ringSize, height: S.ringSize, position:"relative", flexShrink:0 }}>
+    <div style={{ width: S.ringSize, height: S.ringSize, position: "relative", flexShrink: 0 }}>
       <svg viewBox={`0 0 ${VB} ${VB}`} width="100%" height="100%"
-        style={{ transform:"rotate(-90deg)", display:"block" }}>
+        style={{ transform: "rotate(-90deg)", display: "block" }}>
         <defs>
           <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%"   stopColor={T.accent} />
-            <stop offset="100%" stopColor={T.gold}   />
+            <stop offset="0%" stopColor={T.accent} />
+            <stop offset="100%" stopColor={T.gold} />
           </linearGradient>
         </defs>
         {/* track */}
-        <circle cx={VB/2} cy={VB/2} r={R}
+        <circle cx={VB / 2} cy={VB / 2} r={R}
           fill="none" stroke={T.cardBorder} strokeWidth={SW} />
         {/* fill */}
-        <circle cx={VB/2} cy={VB/2} r={R}
+        <circle cx={VB / 2} cy={VB / 2} r={R}
           fill="none" stroke="url(#ringGrad)" strokeWidth={SW}
           strokeLinecap="round"
           strokeDasharray={CIRC} strokeDashoffset={offset}
-          style={{ transition:"stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1)" }} />
+          style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1)" }} />
       </svg>
       {/* centred label */}
       <div style={{
-        position:"absolute", inset:0,
-        display:"flex", alignItems:"center", justifyContent:"center",
+        position: "absolute", inset: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        <span style={{ fontSize: S.fontRing, fontWeight:800, color: T.text, letterSpacing:-0.5 }}>
+        <span style={{ fontSize: S.fontRing, fontWeight: 800, color: T.text, letterSpacing: -0.5 }}>
           {percent}%
         </span>
       </div>
@@ -194,105 +194,105 @@ function QuestCard({ quest, onToggle, isExpanded, onExpand }: QuestCardProps) {
 
   return (
     <div style={{
-      position  : "relative",
+      position: "relative",
       borderRadius: S.rCard,
-      border    : `1px solid ${quest.completed ? T.green+"44" : T.cardBorder}`,
+      border: `1px solid ${quest.completed ? T.green + "44" : T.cardBorder}`,
       background: quest.completed
         ? "linear-gradient(135deg, rgba(74,222,128,0.06), rgba(74,222,128,0.02))"
         : T.cardBg,
-      overflow  : "hidden",
+      overflow: "hidden",
       marginBottom: S.cardMargin,
-      animation : "slideUp 0.4s cubic-bezier(.4,0,.2,1) both",
+      animation: "slideUp 0.4s cubic-bezier(.4,0,.2,1) both",
     }}>
       {/* shimmer on completed cards */}
       {quest.completed && (
         <div style={{
-          position:"absolute", inset:0, pointerEvents:"none", zIndex:1,
-          background:"linear-gradient(105deg, transparent 40%, rgba(74,222,128,0.04) 50%, transparent 60%)",
-          backgroundSize:"200% 100%",
-          animation:"shimmer 3s ease-in-out infinite",
+          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1,
+          background: "linear-gradient(105deg, transparent 40%, rgba(74,222,128,0.04) 50%, transparent 60%)",
+          backgroundSize: "200% 100%",
+          animation: "shimmer 3s ease-in-out infinite",
         }} />
       )}
 
       {/* ── tappable row ──────────────────────────────────────────── */}
       <div onClick={quest.completed ? undefined : tap} style={{
-        position:"relative", zIndex:2,
-        display:"flex", alignItems:"center",
+        position: "relative", zIndex: 2,
+        display: "flex", alignItems: "center",
         gap: S.cardGap,
         padding: S.cardPad,
         cursor: quest.completed ? "default" : "pointer",
-        WebkitTapHighlightColor:"transparent",
-        userSelect:"none",
+        WebkitTapHighlightColor: "transparent",
+        userSelect: "none",
       }}>
         {/* ripple */}
         {ripple && (
           <div style={{
-            position:"absolute", inset:0, pointerEvents:"none",
+            position: "absolute", inset: 0, pointerEvents: "none",
             borderRadius: S.rCard,
-            background:"radial-gradient(circle at center, rgba(192,132,252,0.15), transparent 70%)",
-            animation:"rippleOut 0.5s ease-out forwards",
+            background: "radial-gradient(circle at center, rgba(192,132,252,0.15), transparent 70%)",
+            animation: "rippleOut 0.5s ease-out forwards",
           }} />
         )}
 
         {/* ── checkbox ── */}
         <div style={{
-          width: S.checkSize, height: S.checkSize, flexShrink:0,
+          width: S.checkSize, height: S.checkSize, flexShrink: 0,
           borderRadius: S.rCheck,
-          border:`2px solid ${quest.completed ? T.green : T.faint}`,
+          border: `2px solid ${quest.completed ? T.green : T.faint}`,
           background: quest.completed ? T.green : "transparent",
-          display:"flex", alignItems:"center", justifyContent:"center",
-          transition:"all 0.3s cubic-bezier(.68,-.55,.265,1.55)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "all 0.3s cubic-bezier(.68,-.55,.265,1.55)",
           boxShadow: quest.completed ? `0 0 10px ${T.greenGlow}` : "none",
         }}>
           {quest.completed && (
-            <svg viewBox="0 0 12 12" fill="none" style={{ width:"55%", height:"55%" }}>
+            <svg viewBox="0 0 12 12" fill="none" style={{ width: "55%", height: "55%" }}>
               <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2.2"
                 strokeLinecap="round" strokeLinejoin="round"
-                style={{ animation:"checkDraw .35s ease forwards" }} />
+                style={{ animation: "checkDraw .35s ease forwards" }} />
             </svg>
           )}
         </div>
 
         {/* ── icon bubble ── */}
         <div style={{
-          width: S.iconSize, height: S.iconSize, flexShrink:0,
+          width: S.iconSize, height: S.iconSize, flexShrink: 0,
           borderRadius: S.rIcon,
           background: quest.completed
             ? "rgba(74,222,128,0.1)"
             : "linear-gradient(135deg, rgba(192,132,252,0.15), rgba(124,58,237,0.1))",
-          display:"flex", alignItems:"center", justifyContent:"center",
+          display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: S.iconFont,
-          border:`1px solid ${quest.completed ? "rgba(74,222,128,0.2)" : "rgba(192,132,252,0.18)"}`,
+          border: `1px solid ${quest.completed ? "rgba(74,222,128,0.2)" : "rgba(192,132,252,0.18)"}`,
         }}>
           {quest.icon}
         </div>
 
         {/* ── text block ── */}
-        <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{
-            display:"block",
-            fontSize: S.fontBase, fontWeight:700,
+            display: "block",
+            fontSize: S.fontBase, fontWeight: 700,
             color: quest.completed ? T.muted : T.text,
             textDecoration: quest.completed ? "line-through" : "none",
-            textDecorationColor: quest.completed ? T.green+"66" : "transparent",
-            whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
-            transition:"color .3s",
+            textDecorationColor: quest.completed ? T.green + "66" : "transparent",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            transition: "color .3s",
           }}>
             {quest.name}
           </span>
 
           <div style={{
-            display:"flex", alignItems:"center",
+            display: "flex", alignItems: "center",
             gap: S.pillGap, marginTop: S.headerMeta,
             fontSize: S.fontSm, color: T.muted,
           }}>
             <span>⏱ {quest.duration}</span>
             <span style={{
               background: quest.completed ? "rgba(74,222,128,0.12)" : "rgba(192,132,252,0.1)",
-              color     : quest.completed ? T.green : T.accent,
-              padding   : `1px ${S.pillGap}`,
+              color: quest.completed ? T.green : T.accent,
+              padding: `1px ${S.pillGap}`,
               borderRadius: S.rBadge,
-              fontSize  : S.fontXS, fontWeight:600, letterSpacing:0.3,
+              fontSize: S.fontXS, fontWeight: 600, letterSpacing: 0.3,
             }}>
               {quest.category}
             </span>
@@ -300,18 +300,18 @@ function QuestCard({ quest, onToggle, isExpanded, onExpand }: QuestCardProps) {
         </div>
 
         {/* ── XP value ── */}
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", flexShrink:0 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
           <span style={{
-            fontSize: S.fontMd, fontWeight:800,
+            fontSize: S.fontMd, fontWeight: 800,
             color: quest.completed ? T.muted : T.gold,
             textShadow: quest.completed ? "none" : `0 0 8px ${T.goldGlow}`,
-            letterSpacing:-0.5,
+            letterSpacing: -0.5,
           }}>
             +{quest.xp}
           </span>
           <span style={{
-            fontSize: S.fontXS, fontWeight:700, color: T.faint,
-            textTransform:"uppercase", letterSpacing:1,
+            fontSize: S.fontXS, fontWeight: 700, color: T.faint,
+            textTransform: "uppercase", letterSpacing: 1,
           }}>
             XP
           </span>
@@ -321,12 +321,12 @@ function QuestCard({ quest, onToggle, isExpanded, onExpand }: QuestCardProps) {
         <div
           onClick={(e) => { e.stopPropagation(); onExpand(quest.id); }}
           style={{
-            width: S.chevronBox, height: S.chevronBox, flexShrink:0,
-            display:"flex", alignItems:"center", justifyContent:"center",
+            width: S.chevronBox, height: S.chevronBox, flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
             borderRadius: S.rCheck,
-            background:"rgba(255,255,255,0.04)",
-            cursor:"pointer",
-            transition:"transform .3s ease",
+            background: "rgba(255,255,255,0.04)",
+            cursor: "pointer",
+            transition: "transform .3s ease",
             transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
           }}>
           <svg viewBox="0 0 10 10" fill="none"
@@ -340,17 +340,17 @@ function QuestCard({ quest, onToggle, isExpanded, onExpand }: QuestCardProps) {
       {/* ── expanded detail panel ─────────────────────────────────── */}
       <div style={{
         maxHeight: isExpanded ? 200 : 0,
-        overflow:"hidden",
-        transition:"max-height .4s cubic-bezier(.4,0,.2,1)",
+        overflow: "hidden",
+        transition: "max-height .4s cubic-bezier(.4,0,.2,1)",
       }}>
         <div style={{
-          borderTop:`1px solid ${T.cardBorder}`,
-          padding:`${S.detailPad} ${S.cardPad} ${S.detailPad}`,
-          position:"relative", zIndex:2,
+          borderTop: `1px solid ${T.cardBorder}`,
+          padding: `${S.detailPad} ${S.cardPad} ${S.detailPad}`,
+          position: "relative", zIndex: 2,
         }}>
           {/* Description */}
           {quest.details && (
-            <p style={{ fontSize: S.fontSm, color: T.muted, lineHeight:1.65, margin:`0 0 ${S.cardGap} 0` }}>
+            <p style={{ fontSize: S.fontSm, color: T.muted, lineHeight: 1.65, margin: `0 0 ${S.cardGap} 0` }}>
               {quest.details}
             </p>
           )}
@@ -390,7 +390,7 @@ function QuestCard({ quest, onToggle, isExpanded, onExpand }: QuestCardProps) {
                   recovery: { bg: 'rgba(168, 85, 247, 0.15)', text: '#a855f7', border: 'rgba(168, 85, 247, 0.4)' },  // 🟣 Purple
                 };
                 const colors = statColors[stat] || { bg: 'rgba(192,132,252,0.15)', text: T.accent, border: 'rgba(192,132,252,0.4)' };
-                
+
                 return (
                   <div
                     key={stat}
@@ -423,52 +423,92 @@ function QuestCard({ quest, onToggle, isExpanded, onExpand }: QuestCardProps) {
 }
 
 // ─── Root Component ─────────────────────────────────────────────────────────
-export function QuestsSection({ 
+export function QuestsSection({
   quests,
-  onTaskComplete 
-}: { 
+  onTaskComplete
+}: {
   quests: Quest[]
   onTaskComplete?: (xpGain: number, newProgression: any) => void
 }) {
   const [localQuests, setQuests] = useState<Quest[]>(quests);
-  const [expandedQuest, setExpandedQuest]    = useState<number | null>(null);
-  const [celebrationId, setCelebrationId]    = useState<number | null>(null);
+  const [expandedQuest, setExpandedQuest] = useState<number | null>(null);
+  const [celebrationId, setCelebrationId] = useState<number | null>(null);
 
-  const completedCount = localQuests.filter(q =>  q.completed).length;
-  const totalXP        = localQuests.reduce((s,q)=> s + q.xp, 0);
-  const completedXP    = localQuests.filter(q =>  q.completed).reduce((s,q)=> s + q.xp, 0);
-  const percent        = Math.round((completedCount / localQuests.length) * 100);
+  const completedCount = localQuests.filter(q => q.completed).length;
+  const totalXP = localQuests.reduce((s, q) => s + q.xp, 0);
+  const completedXP = localQuests.filter(q => q.completed).reduce((s, q) => s + q.xp, 0);
+  const percent = Math.round((completedCount / localQuests.length) * 100);
 
   const toggle = async (id: number) => {
     const quest = localQuests.find(q => q.id === id);
-    if (!quest) return;
+    if (!quest) {
+      console.error('❌ Quest not found in local state:', id);
+      return;
+    }
+
+    console.log('🎯 [Toggle] Starting task completion for quest:', {
+      questId: id,
+      questTitle: quest.name,
+      questType: typeof quest.id,
+    });
 
     // Only allow completing incomplete tasks
-    if (quest.completed) return;
+    if (quest.completed) {
+      console.warn('⚠️ [Toggle] Quest already completed:', id);
+      return;
+    }
 
     // ✅ OPTIMISTIC UPDATE: Update UI immediately without waiting for API
+    console.log('⏳ [Toggle] Applying optimistic UI update...');
     setQuests(prev => prev.map(q => q.id === id ? { ...q, completed: true } : q));
     setCelebrationId(id);
-    
+
     // Show celebration animation
     setTimeout(() => setCelebrationId(null), 1200);
 
     // Now sync with backend asynchronously
     try {
+      console.log('📤 [Toggle] Sending POST request to /tasks/complete with payload:', {
+        taskId: id,
+        taskIdType: typeof id,
+        timestamp: new Date().toISOString()
+      });
+
       const response = await apiClient.post('/tasks/complete', { taskId: id });
-      
+
+      console.log('✅ [Toggle] Backend response received:', {
+        status: response.status,
+        hasProgression: !!response.data?.progression,
+        xpGain: response.data?.xpGain
+      });
+
       // Update XP in parent component once backend confirms
       if (response.data.progression && onTaskComplete) {
-        console.log('✅ Task completed! XP awarded:', response.data.xpGain);
+        console.log('✅ [Toggle] Task completed! XP awarded:', response.data.xpGain);
+        console.log('📊 [Toggle] Updated progression:', response.data.progression);
         onTaskComplete(response.data.xpGain, response.data.progression);
-        
+
         // 📡 Dispatch event to notify radar chart to refetch stats
         window.dispatchEvent(new Event('task-completed'));
-        console.log('📡 Broadcasted task-completed event');
+        console.log('📡 [Toggle] Broadcasted task-completed event');
+      } else {
+        console.warn('⚠️ [Toggle] Response missing progression data:', response.data);
       }
-    } catch (error) {
-      console.error('Failed to sync with backend:', error);
+    } catch (error: any) {
+      console.error('❌ [Toggle] Failed to sync with backend:', {
+        errorMessage: error.message,
+        errorCode: error.code,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        url: error.response?.config?.url,
+        method: error.response?.config?.method,
+        payload: error.response?.config?.data,
+        responseData: error.response?.data,
+        timestamp: new Date().toISOString()
+      });
+
       // Revert UI if backend fails
+      console.log('🔄 [Toggle] Reverting optimistic UI update...');
       setQuests(prev => prev.map(q => q.id === id ? { ...q, completed: false } : q));
       alert('Failed to complete task. Please try again.');
     }
@@ -477,18 +517,18 @@ export function QuestsSection({
   // incomplete first, completed after
   const sorted = [
     ...localQuests.filter(q => !q.completed),
-    ...localQuests.filter(q =>  q.completed),
+    ...localQuests.filter(q => q.completed),
   ];
 
   return (
-      <div style={{
-        // allow the container to size naturally; avoid hard viewport height
-        minHeight: "100%",
+    <div style={{
+      // allow the container to size naturally; avoid hard viewport height
+      minHeight: "100%",
       background: T.bg,
-      fontFamily:"'Inter','SF Pro Display',system-ui,sans-serif",
-      color     : T.text,
-      position  : "relative",
-      overflow  : "hidden",
+      fontFamily: "'Inter','SF Pro Display',system-ui,sans-serif",
+      color: T.text,
+      position: "relative",
+      overflow: "hidden",
     }}>
       {/* ── global keyframes ────────────────────────────────────── */}
       <style>{`
@@ -524,28 +564,28 @@ export function QuestsSection({
       `}</style>
 
       {/* ── ambient particles ─────────────────────────────────── */}
-      <Particle style={{ top:"8%",  left:"15%",                         animation:"floatUp 6s  ease-in-out infinite"         }} />
-      <Particle style={{ top:"25%", right:"10%", width:2, height:2,     animation:"floatUp 8s  ease-in-out 1s   infinite"   }} />
-      <Particle style={{ top:"60%", left:"5%",   width:4, height:4,     animation:"floatUp 10s ease-in-out 2s   infinite"   }} />
-      <Particle style={{ top:"75%", right:"20%",                        animation:"floatUp 7s  ease-in-out 0.5s infinite"   }} />
+      <Particle style={{ top: "8%", left: "15%", animation: "floatUp 6s  ease-in-out infinite" }} />
+      <Particle style={{ top: "25%", right: "10%", width: 2, height: 2, animation: "floatUp 8s  ease-in-out 1s   infinite" }} />
+      <Particle style={{ top: "60%", left: "5%", width: 4, height: 4, animation: "floatUp 10s ease-in-out 2s   infinite" }} />
+      <Particle style={{ top: "75%", right: "20%", animation: "floatUp 7s  ease-in-out 0.5s infinite" }} />
 
       {/* ── celebration overlay ───────────────────────────────── */}
       {celebrationId && (
         <div style={{
-          position:"fixed", inset:0, zIndex:100, pointerEvents:"none",
-          display:"flex", alignItems:"center", justifyContent:"center",
+          position: "fixed", inset: 0, zIndex: 100, pointerEvents: "none",
+          display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div style={{
-            width: S.celebRing, height: S.celebRing, borderRadius:"50%",
-            border:`3px solid ${T.gold}`,
-            animation:"celebBurst .6s ease-out forwards",
-            boxShadow:`0 0 30px ${T.goldGlow}`,
+            width: S.celebRing, height: S.celebRing, borderRadius: "50%",
+            border: `3px solid ${T.gold}`,
+            animation: "celebBurst .6s ease-out forwards",
+            boxShadow: `0 0 30px ${T.goldGlow}`,
           }} />
           <div style={{
-            position:"absolute", top:"40%", left:"50%", transform:"translateX(-50%)",
-            fontSize: S.celebFont, fontWeight:800, color: T.gold, whiteSpace:"nowrap",
-            animation:"floatUp 1.2s ease-out forwards",
-            textShadow:`0 0 12px ${T.goldGlow}`,
+            position: "absolute", top: "40%", left: "50%", transform: "translateX(-50%)",
+            fontSize: S.celebFont, fontWeight: 800, color: T.gold, whiteSpace: "nowrap",
+            animation: "floatUp 1.2s ease-out forwards",
+            textShadow: `0 0 12px ${T.goldGlow}`,
           }}>
             +XP ✨
           </div>
@@ -554,38 +594,38 @@ export function QuestsSection({
 
       {/* ── header section ────────────────────────────────────── */}
       <div style={{
-        position     : "relative",
-        paddingTop   : S.pageTop,
+        position: "relative",
+        paddingTop: S.pageTop,
         paddingBottom: S.pagePad,
-        paddingLeft  : S.pagePad,
-        paddingRight : S.pagePad,
+        paddingLeft: S.pagePad,
+        paddingRight: S.pagePad,
       }}>
         {/* background glow */}
         <div style={{
-          position:"absolute", top:"-40px", left:"50%", transform:"translateX(-50%)",
-          width:"120%", height:"45%",
-          background:`radial-gradient(ellipse, ${T.accentGlow} 0%, transparent 70%)`,
-          animation:"headerGlow 4s ease-in-out infinite",
-          pointerEvents:"none",
+          position: "absolute", top: "-40px", left: "50%", transform: "translateX(-50%)",
+          width: "120%", height: "45%",
+          background: `radial-gradient(ellipse, ${T.accentGlow} 0%, transparent 70%)`,
+          animation: "headerGlow 4s ease-in-out infinite",
+          pointerEvents: "none",
         }} />
 
         {/* title + ring row */}
         <div style={{
-          display:"flex", alignItems:"flex-start", justifyContent:"space-between",
-          position:"relative", zIndex:1,
+          display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+          position: "relative", zIndex: 1,
         }}>
-          <div style={{ minWidth:0 }}>
-            <div style={{ display:"flex", alignItems:"center", gap: S.headerGap, marginBottom: S.headerMeta }}>
-              <span style={{ fontSize: S.headerEmoji, flexShrink:0 }}>⚔️</span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: S.headerGap, marginBottom: S.headerMeta }}>
+              <span style={{ fontSize: S.headerEmoji, flexShrink: 0 }}>⚔️</span>
               <h1 style={{
-                fontSize: S.fontTitle, fontWeight:800, color: T.text,
-                letterSpacing:-0.5, margin:0,
-                whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+                fontSize: S.fontTitle, fontWeight: 800, color: T.text,
+                letterSpacing: -0.5, margin: 0,
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
               }}>
                 Active Quests
               </h1>
             </div>
-            <p style={{ fontSize: S.fontSm, color: T.muted, margin:0, paddingLeft: S.headerEmoji }}>
+            <p style={{ fontSize: S.fontSm, color: T.muted, margin: 0, paddingLeft: S.headerEmoji }}>
               {completedCount} of {localQuests.length} completed
             </p>
           </div>
@@ -595,31 +635,31 @@ export function QuestsSection({
 
         {/* XP summary pills */}
         <div style={{
-          display:"flex", gap: S.pillGap, marginTop: S.pillMarginTop,
-          position:"relative", zIndex:1,
+          display: "flex", gap: S.pillGap, marginTop: S.pillMarginTop,
+          position: "relative", zIndex: 1,
         }}>
           {[
-            { label:"Earned",    value: completedXP,         color: T.gold,   glow: T.goldGlow,  bg:"rgba(245,158,11,0.08)",  border:"rgba(245,158,11,0.2)"   },
-            { label:"Remaining", value: totalXP - completedXP, color: T.accent, glow: T.accentGlow, bg:"rgba(192,132,252,0.07)", border:"rgba(192,132,252,0.18)" },
-            { label:"Total",     value: totalXP,             color: T.text,   glow: null,         bg:"rgba(226,232,240,0.04)", border:"rgba(226,232,240,0.1)"  },
+            { label: "Earned", value: completedXP, color: T.gold, glow: T.goldGlow, bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)" },
+            { label: "Remaining", value: totalXP - completedXP, color: T.accent, glow: T.accentGlow, bg: "rgba(192,132,252,0.07)", border: "rgba(192,132,252,0.18)" },
+            { label: "Total", value: totalXP, color: T.text, glow: null, bg: "rgba(226,232,240,0.04)", border: "rgba(226,232,240,0.1)" },
           ].map(pill => (
             <div key={pill.label} style={{
-              flex:1,
-              background  : pill.bg,
-              border      : `1px solid ${pill.border}`,
+              flex: 1,
+              background: pill.bg,
+              border: `1px solid ${pill.border}`,
               borderRadius: S.rPill,
-              padding     : `${S.pillPadY} ${S.pillPadX}`,
-              textAlign   : "center",
+              padding: `${S.pillPadY} ${S.pillPadX}`,
+              textAlign: "center",
             }}>
               <p style={{
                 fontSize: S.fontXS, color: T.muted,
-                textTransform:"uppercase", letterSpacing:0.8, margin:0,
+                textTransform: "uppercase", letterSpacing: 0.8, margin: 0,
               }}>
                 {pill.label}
               </p>
               <p style={{
-                fontSize: S.fontLg, fontWeight:800, color: pill.color,
-                margin:"2px 0 0",
+                fontSize: S.fontLg, fontWeight: 800, color: pill.color,
+                margin: "2px 0 0",
                 textShadow: pill.glow ? `0 0 8px ${pill.glow}` : "none",
               }}>
                 {pill.value.toLocaleString()}
@@ -631,20 +671,20 @@ export function QuestsSection({
 
       {/* ── divider ─────────────────────────────────────────────── */}
       <div style={{
-        height:1,
-        background:`linear-gradient(to right, transparent, ${T.cardBorder}, transparent)`,
-        margin:`0 ${S.pagePad}`,
+        height: 1,
+        background: `linear-gradient(to right, transparent, ${T.cardBorder}, transparent)`,
+        margin: `0 ${S.pagePad}`,
       }} />
 
       {/* ── quest list ──────────────────────────────────────────── */}
-      <div style={{ padding:`${S.pagePad} ${S.pagePad} ${S.pageBot}` }}>
+      <div style={{ padding: `${S.pagePad} ${S.pagePad} ${S.pageBot}` }}>
         {sorted.map((quest, i) => (
           <div
             key={quest.id}
             style={{
               animationDelay: `${i * 0.06}s`,
               animationFillMode: "both",
-                marginBottom: i === sorted.length - 1 ? 0 : S.cardMargin,
+              marginBottom: i === sorted.length - 1 ? 0 : S.cardMargin,
             }}
           >
             <QuestCard

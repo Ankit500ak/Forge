@@ -344,13 +344,20 @@ export const completeTask = async (req, res) => {
   const { taskId } = req.body;
 
   try {
-    console.log(`[Tasks] Completing task ${taskId} for user ${userId}`);
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(`[Tasks] 🎯 COMPLETE TASK REQUEST RECEIVED`);
+    console.log(`[Tasks] User ID: ${userId}`);
+    console.log(`[Tasks] Task ID: ${taskId} (type: ${typeof taskId})`);
+    console.log(`[Tasks] Request body:`, req.body);
+    console.log('═══════════════════════════════════════════════════════════════');
 
     if (!taskId) {
+      console.error('[Tasks] ❌ Task ID is required');
       return res.status(400).json({ message: 'Task ID is required' });
     }
 
     if (!userId) {
+      console.error('[Tasks] ❌ User not authenticated');
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
@@ -359,12 +366,12 @@ export const completeTask = async (req, res) => {
     const isNumeric = /^\d+$/.test(String(taskId));
     const isUUID = uuidRegex.test(String(taskId));
 
+    console.log(`[Tasks] 🔍 ID Validation: isNumeric=${isNumeric}, isUUID=${isUUID}`);
+
     if (!isNumeric && !isUUID) {
-      console.error(`[Tasks] Invalid task ID format: ${taskId}`);
+      console.error(`[Tasks] ❌ Invalid task ID format: ${taskId}`);
       return res.status(400).json({ message: 'Invalid task ID format. Must be a valid ID or UUID.' });
     }
-
-    console.log(`[Tasks] Task ID type: ${isNumeric ? 'numeric' : 'UUID'}`);
 
     // Try to get task - handle both numeric and UUID IDs
     let task = null;
@@ -382,29 +389,38 @@ export const completeTask = async (req, res) => {
       taskError = result.error;
     } else if (isNumeric) {
       // For numeric IDs, fetch all user tasks and filter in-memory
-      console.log(`[Tasks] Attempting to find numeric task ID: ${taskId}`);
+      console.log(`[Tasks] 🔍 Attempting to find numeric task ID: ${taskId}`);
       const result = await supabase
         .from('tasks')
-        .select('*')
+        .select('id, title, user_id')
         .eq('user_id', userId);
 
       if (result.error) {
+        console.error(`[Tasks] ❌ Error fetching user's tasks:`, result.error);
         taskError = result.error;
       } else if (result.data) {
+        console.log(`[Tasks] 📋 Found ${result.data.length} total tasks for user ${userId}`);
+        console.log(`[Tasks] 🔎 Available task IDs:`, result.data.map(t => ({ id: t.id, idType: typeof t.id, title: t.title })));
+
         // Try to match by ID (converted to string for comparison)
         task = result.data.find(t => String(t.id) === String(taskId));
+
         if (!task) {
-          taskError = { code: 'PGRST116', message: 'Task not found' };
+          console.warn(`[Tasks] ⚠️ Task ID ${taskId} (${typeof taskId}) not found in user's tasks`);
+          console.warn(`[Tasks] 🔍 Searched IDs: ${result.data.map(t => `${String(t.id)}(${typeof t.id})`).join(', ')}`);
+          taskError = { code: 'PGRST116', message: `Task ID ${taskId} not found for user ${userId}` };
+        } else {
+          console.log(`[Tasks] ✅ Found matching task:`, { id: task.id, title: task.title });
         }
       }
     }
 
     if (taskError) {
       if (taskError.code === 'PGRST116' || taskError.message?.includes('not found')) {
-        console.log(`[Tasks] Task not found: ${taskId}`);
-        return res.status(404).json({ message: 'Task not found' });
+        console.warn(`[Tasks] ⚠️ Task not found: ${taskId} for user ${userId}`);
+        return res.status(404).json({ message: 'Task not found', taskId, userId });
       }
-      console.error('[Tasks] Error fetching task:', taskError);
+      console.error('[Tasks] ❌ Error fetching task:', taskError);
       return res.status(500).json({
         message: 'Failed to fetch task',
         error: taskError.message
@@ -412,13 +428,20 @@ export const completeTask = async (req, res) => {
     }
 
     if (!task) {
-      console.log(`[Tasks] Task not found: ${taskId}`);
-      return res.status(404).json({ message: 'Task not found' });
+      console.warn(`[Tasks] ⚠️ Task is null after fetch: ${taskId}`);
+      return res.status(404).json({ message: 'Task not found', taskId });
     }
 
-    console.log(`[Tasks] Found task: ${task.title}, XP reward: ${task.xp_reward}`);
+    console.log(`[Tasks] ✅ Found task:`, {
+      id: task.id,
+      title: task.title,
+      xpReward: task.xp_reward,
+      completed: task.completed,
+      category: task.category
+    });
 
     if (task.completed) {
+      console.warn(`[Tasks] ⚠️ Task already completed: ${taskId}`);
       return res.status(400).json({ message: 'Task already completed' });
     }
 
