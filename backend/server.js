@@ -90,27 +90,21 @@ app.use((req, res, next) => {
 
 // Health check (place BEFORE other /api routes)
 app.get('/api/health', (req, res) => {
-  console.log('✅ /api/health checked');
-  res.json({ status: 'Backend server is running' });
+  console.log('✅ /api/health checked - server is healthy!');
+  res.json({ status: 'Backend server is running ✅' });
 });
 
 // Routes
+console.log('[Server] Mounting auth routes on /api/auth');
 app.use('/api/auth', authRoutes);
+console.log('[Server] Mounting users routes on /api/users');
 app.use('/api/users', userRoutes);
+console.log('[Server] Mounting ranks routes on /api/ranks');
 app.use('/api/ranks', ranksRoutes);
+console.log('[Server] Mounting tasks routes on /api/tasks');
 app.use('/api/tasks', taskRoutes);
+console.log('[Server] Mounting debug routes on /api/debug');
 app.use('/api/debug', debugRoutes);
-
-// Manual XP rollover trigger (for testing/admin)
-app.post('/api/admin/rollover', async (req, res) => {
-  try {
-    await triggerRollover();
-    res.json({ message: 'XP rollover completed successfully' });
-  } catch (error) {
-    console.error('Error triggering rollover:', error);
-    res.status(500).json({ message: 'Rollover failed', error: error.message });
-  }
-});
 
 // ════════════════════════════════════════════════════════════════════════════
 // Admin endpoints for task scheduler (DAILY RESET AT 12 PM)
@@ -143,6 +137,18 @@ app.get('/api/admin/tasks/next-reset', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// 404 handler for debugging
+app.use((req, res) => {
+  console.error(`[404] Route not found: ${req.method} ${req.originalUrl}`);
+  console.error(`[404] Available base paths: /api/auth, /api/users, /api/ranks, /api/tasks, /api/debug`);
+  res.status(404).json({
+    message: 'Route not found',
+    path: req.originalUrl,
+    method: req.method,
+    availablePaths: ['/api/auth', '/api/users', '/api/ranks', '/api/tasks', '/api/debug', '/api/health', '/api/admin']
+  });
 });
 
 // Error handling middleware
