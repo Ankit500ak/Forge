@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import * as tf from '@tensorflow/tfjs'
 import * as cocoSsd from '@tensorflow-models/coco-ssd'
 import { findNutritionData } from '@/lib/nutritionDatabase'
+import axios from 'axios'
 
 interface DetectedFood {
+    id: string
     label: string
     confidence: number
     calories: number
@@ -13,53 +15,131 @@ interface DetectedFood {
     carbs: number
     fat: number
     unit: string
+    detectedAt: number
 }
 
-export function FoodDetectionCamera({ onDetected, onClose }: { onDetected?: (foods: DetectedFood[]) => void; onClose: () => void }) {
+interface SaveStatus {
+    saving: boolean
+    saved: boolean
+    error: string | null
+}
+
+interface NutritionTotals {
+    calories: number
+    protein: number
+    carbs: number
+    fat: number
+}
+
+export function FoodDetectionCamera({
+    onDetected,
+    onClose,
+    cameraIconElement,
+}: {
+    onDetected?: (foods: DetectedFood[]) => void
+    onClose: () => void
+    cameraIconElement?: HTMLElement
+}) {
+    // Refs
     const videoRef = useRef<HTMLVideoElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
+    const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null)
+    const streamRef = useRef<MediaStream | null>(null)
+
+    // State
     const [loading, setLoading] = useState(true)
     const [detectedFoods, setDetectedFoods] = useState<DetectedFood[]>([])
     const [modelLoaded, setModelLoaded] = useState(false)
+    const [saveStatus, setSaveStatus] = useState<SaveStatus>({ saving: false, saved: false, error: null })
+    const [cameraError, setCameraError] = useState<string | null>(null)
+    const [totals, setTotals] = useState<NutritionTotals>({ calories: 0, protein: 0, carbs: 0, fat: 0 })
+    const [detectionQuality, setDetectionQuality] = useState<'low' | 'medium' | 'high'>('medium')
+
     const modelRef = useRef<cocoSsd.ObjectDetection | null>(null)
-    const animationIdRef = useRef<number>(0)
 
-    // Food-related COCO classes
-    const FOOD_CLASSES = new Set([
-        'apple', 'banana', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut',
-        'cake', 'sandwich', 'cup', 'bowl', 'wine glass', 'fork', 'knife', 'spoon',
-        'bottle', 'bread', 'potted plant', 'teddy bear', // Plant for produce detection
-    ])
+    // Enhanced food taxonomy (COCO + Indian dishes)
+    const FOOD_CLASS_MAP: { [key: string]: string } = {
+        // Fruits
+        'apple': 'apple',
+        'banana': 'banana',
+        'orange': 'orange',
+        'donut': 'donut',
 
-    // Initialize camera and model
+        // Vegetables
+        'broccoli': 'broccoli',
+        'carrot': 'carrot',
+
+        // Proteins
+        'hot dog': 'hot dog',
+        'chicken': 'chicken',
+        'pizza': 'pizza',
+        'sandwich': 'sandwich',
+        'cake': 'cake',
+
+        // Containers (for context)
+        'cup': 'cup',
+        'bowl': 'bowl',
+        'wine glass': 'glass',
+        'fork': 'fork',
+        'knife': 'knife',
+        'spoon': 'spoon',
+        'bottle': 'bottle',
+
+        // Indian dishes (custom mapping)
+        'rice': 'rice',
+        'bread': 'bread',
+        'noodle': 'noodles',
+    }
+
+    // COCO-SSD doesn't detect Indian dishes directly, so we map common items
+    const INDIAN_DISH_KEYWORDS: { [key: string]: string } = {
+        'rice': 'white rice',
+        'bread': 'roti/naan',
+        'bowl': 'curry/dal',
+        'plate': 'mixed meal',
+        'chicken': 'tandoori chicken',
+    }
+
+    /**
+     * Initialize camera and TensorFlow model
+     */
     useEffect(() => {
         const initializeCamera = async () => {
             try {
                 setLoading(true)
+                setCameraError(null)
 
-                // Load TensorFlow.js and COCO-SSD model
+                // Load COCO-SSD model
                 console.log('🤖 Loading COCO-SSD model...')
                 const model = await cocoSsd.load()
                 modelRef.current = model
                 setModelLoaded(true)
-                console.log('✅ COCO-SSD model loaded')
+                console.log('✅ COCO-SSD model loaded successfully')
 
-                // Access camera
+                // Request camera access
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                    },
                     audio: false,
                 })
+
+                streamRef.current = stream
 
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream
                     videoRef.current.onloadedmetadata = () => {
                         videoRef.current?.play()
                         setLoading(false)
-                        detectFood()
+                        startDetection()
                     }
                 }
-            } catch (err) {
-                console.error('❌ Camera initialization failed:', err)
+            } catch (err: any) {
+                const errorMsg = err?.message || 'Failed to initialize camera'
+                console.error('❌ Initialization error:', errorMsg)
+                setCameraError(errorMsg)
                 setLoading(false)
             }
         }
@@ -67,85 +147,134 @@ export function FoodDetectionCamera({ onDetected, onClose }: { onDetected?: (foo
         initializeCamera()
 
         return () => {
-            if (animationIdRef.current) {
-                cancelAnimationFrame(animationIdRef.current)
-            }
-            if (videoRef.current?.srcObject) {
-                const stream = videoRef.current.srcObject as MediaStream
-                stream.getTracks().forEach(track => track.stop())
+            stopDetection()
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop())
             }
         }
     }, [])
 
-    // Real-time food detection
+    /**
+     * Start real-time detection loop
+     */
+    const startDetection = () => {
+        if (detectionIntervalRef.current) clearInterval(detectionIntervalRef.current)
+
+        // Run detection 2x per second for smooth real-time updates
+        detectionIntervalRef.current = setInterval(detectFood, 500)
+    }
+
+    /**
+     * Stop detection loop
+     */
+    const stopDetection = () => {
+        if (detectionIntervalRef.current) {
+            clearInterval(detectionIntervalRef.current)
+            detectionIntervalRef.current = null
+        }
+    }
+
+    /**
+     * Core food detection logic
+     */
     const detectFood = async () => {
         if (!modelRef.current || !videoRef.current || !canvasRef.current) {
-            animationIdRef.current = requestAnimationFrame(detectFood)
             return
         }
 
         try {
-            // Run detection
-            const predictions = await modelRef.current.estimateObjects(videoRef.current)
+            const predictions = await modelRef.current.detect(videoRef.current)
 
-            // Filter for food items and enrich with nutrition data
+            // Filter and enrich predictions with nutrition data
             const foodItems: DetectedFood[] = []
+            const seenLabels = new Set<string>()
 
             for (const prediction of predictions) {
-                const label = prediction.class.toLowerCase()
+                const label = prediction.class.toLowerCase().trim()
+                const confidence = prediction.score
 
-                // Check if detected item is food-related
-                if (isFoodItem(label)) {
-                    const nutritionData = findNutritionData(label)
+                // Only process high-confidence detections
+                if (confidence < 0.35) continue
 
-                    if (nutritionData && prediction.score > 0.3) {
-                        foodItems.push({
-                            label: nutritionData.label.toUpperCase(),
-                            confidence: Math.round(prediction.score * 100),
-                            calories: nutritionData.calories,
-                            protein: nutritionData.protein,
-                            carbs: nutritionData.carbs,
-                            fat: nutritionData.fat,
-                            unit: nutritionData.unit,
-                        })
+                // Map to food class
+                const mappedLabel = FOOD_CLASS_MAP[label] || label
+                const labelKey = mappedLabel.toLowerCase()
+
+                // Skip duplicates in this frame
+                if (seenLabels.has(labelKey)) continue
+
+                // Check if it's a food-related item
+                if (!isFoodItem(label)) continue
+
+                // Get nutrition data
+                const nutritionData = findNutritionData(mappedLabel)
+                if (!nutritionData) continue
+
+                seenLabels.add(labelKey)
+
+                foodItems.push({
+                    id: `${labelKey}-${Date.now()}-${Math.random()}`,
+                    label: nutritionData.label.charAt(0).toUpperCase() + nutritionData.label.slice(1),
+                    confidence: Math.round(confidence * 100),
+                    calories: nutritionData.calories,
+                    protein: nutritionData.protein,
+                    carbs: nutritionData.carbs,
+                    fat: nutritionData.fat,
+                    unit: nutritionData.unit,
+                    detectedAt: Date.now(),
+                })
+            }
+
+            // Update detected foods (keep latest 10)
+            setDetectedFoods(prev => {
+                const updated = [...prev]
+
+                for (const newFood of foodItems) {
+                    const existingIndex = updated.findIndex(
+                        f => f.label.toLowerCase() === newFood.label.toLowerCase()
+                    )
+
+                    if (existingIndex !== -1) {
+                        // Update existing item (refresh detection)
+                        updated[existingIndex] = newFood
+                    } else {
+                        // Add new item
+                        updated.push(newFood)
                     }
                 }
-            }
 
-            // Remove duplicates (same food detected multiple times)
-            const uniqueFoods = Array.from(
-                new Map(
-                    foodItems.map(item => [
-                        item.label.toLowerCase(),
-                        item,
-                    ])
-                ).values()
-            )
-
-            setDetectedFoods(uniqueFoods)
-            if (onDetected) {
-                onDetected(uniqueFoods)
-            }
+                // Keep only recent detections
+                return updated.slice(-10)
+            })
 
             // Draw detection boxes
             drawDetections(predictions)
-        } catch (err) {
-            console.error('❌ Detection error:', err)
-        }
 
-        animationIdRef.current = requestAnimationFrame(detectFood)
+            // Call callback
+            if (onDetected) {
+                onDetected(foodItems)
+            }
+        } catch (err: any) {
+            console.error('❌ Detection error:', err?.message)
+        }
     }
 
+    /**
+     * Check if detected label is food-related
+     */
     const isFoodItem = (label: string): boolean => {
         const foodKeywords = [
-            'food', 'fruit', 'vegetable', 'drink', 'bread', 'banana', 'apple', 'orange', 'carrot',
-            'broccoli', 'chicken', 'meat', 'fish', 'egg', 'pizza', 'sandwich', 'cake', 'donut',
-            'rice', 'noodle', 'pasta', 'bowl', 'plate', 'cup', 'bottle', 'glass', 'spoon',
-            'fork', 'knife', 'hot dog', 'salad', 'soup', 'cheese', 'milk', 'butter',
+            'apple', 'banana', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza',
+            'donut', 'cake', 'sandwich', 'cup', 'bowl', 'bottle', 'bread', 'chicken',
+            'wine glass', 'fork', 'knife', 'spoon', 'food', 'fruit', 'vegetable',
+            'drink', 'rice', 'noodle', 'pasta', 'plate', 'glass', 'salad', 'soup',
         ]
         return foodKeywords.some(keyword => label.includes(keyword))
     }
 
+    /**
+     * Draw bounding boxes on canvas
+     */
     const drawDetections = (predictions: any[]) => {
         const canvas = canvasRef.current
         const video = videoRef.current
@@ -157,72 +286,169 @@ export function FoodDetectionCamera({ onDetected, onClose }: { onDetected?: (foo
 
         canvas.width = video.videoWidth
         canvas.height = video.videoHeight
-
         ctx.clearRect(0, 0, canvas.width, canvas.height)
 
         for (const prediction of predictions) {
             const label = prediction.class.toLowerCase()
 
-            if (isFoodItem(label)) {
-                const [x, y, width, height] = prediction.bbox
-                const confidence = Math.round(prediction.score * 100)
+            if (!isFoodItem(label) || prediction.score < 0.35) continue
 
-                // Draw bounding box
-                ctx.strokeStyle = '#00ff00'
-                ctx.lineWidth = 3
-                ctx.strokeRect(x, y, width, height)
+            const [x, y, width, height] = prediction.bbox
+            const confidence = Math.round(prediction.score * 100)
 
-                // Draw label background
-                ctx.fillStyle = 'rgba(0, 255, 0, 0.8)'
-                const textHeight = 25
-                ctx.fillRect(x, y - textHeight, width, textHeight)
+            // Draw bounding box with gradient
+            const gradient = ctx.createLinearGradient(x, y, x + width, y)
+            gradient.addColorStop(0, '#00ff00')
+            gradient.addColorStop(1, '#00aa00')
 
-                // Draw label text
-                ctx.fillStyle = '#000'
-                ctx.font = 'bold 16px Arial'
-                ctx.fillText(`${label} (${confidence}%)`, x + 5, y - 5)
-            }
+            ctx.strokeStyle = gradient
+            ctx.lineWidth = 3
+            ctx.shadowColor = 'rgba(0, 255, 0, 0.5)'
+            ctx.shadowBlur = 8
+            ctx.strokeRect(x, y, width, height)
+
+            // Draw label background
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.9)'
+            const textHeight = 28
+            ctx.fillRect(x, y - textHeight, Math.max(width, 180), textHeight)
+
+            // Draw label text
+            ctx.fillStyle = '#000'
+            ctx.font = 'bold 14px "Segoe UI", sans-serif'
+            ctx.fillText(`${label} (${confidence}%)`, x + 8, y - 8)
         }
     }
 
-    const calculateTotalNutrition = () => {
-        if (detectedFoods.length === 0) return { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    /**
+     * Calculate total nutrition from detected foods
+     */
+    useEffect(() => {
+        if (detectedFoods.length === 0) {
+            setTotals({ calories: 0, protein: 0, carbs: 0, fat: 0 })
+            return
+        }
 
-        return {
-            calories: detectedFoods.reduce((sum, food) => sum + food.calories, 0),
-            protein: detectedFoods.reduce((sum, food) => sum + food.protein, 0),
-            carbs: detectedFoods.reduce((sum, food) => sum + food.carbs, 0),
-            fat: detectedFoods.reduce((sum, food) => sum + food.fat, 0),
+        const newTotals = detectedFoods.reduce(
+            (acc, food) => ({
+                calories: acc.calories + food.calories,
+                protein: acc.protein + food.protein,
+                carbs: acc.carbs + food.carbs,
+                fat: acc.fat + food.fat,
+            }),
+            { calories: 0, protein: 0, carbs: 0, fat: 0 }
+        )
+
+        setTotals(newTotals)
+    }, [detectedFoods])
+
+    /**
+     * Save detected foods to backend
+     */
+    const saveFoodsToBackend = async () => {
+        if (detectedFoods.length === 0) {
+            setSaveStatus({ saving: false, saved: false, error: 'No foods detected to save' })
+            return
+        }
+
+        setSaveStatus({ saving: true, saved: false, error: null })
+        console.log('💾 Saving detected foods to backend...')
+
+        try {
+            const responses = await Promise.all(
+                detectedFoods.map(food =>
+                    axios.post('/api/camera/save-food', {
+                        food_name: food.label,
+                        confidence_score: food.confidence,
+                        calories: food.calories,
+                        protein_g: food.protein,
+                        carbs_g: food.carbs,
+                        fat_g: food.fat,
+                        serving_size: food.unit,
+                        meal_type: 'detected',
+                        source: 'coco-ssd',
+                        detected_at: new Date(food.detectedAt).toISOString(),
+                    })
+                )
+            )
+
+            console.log(`✅ Successfully saved ${detectedFoods.length} food items (${totals.calories} kcal total)`)
+            setSaveStatus({ saving: false, saved: true, error: null })
+
+            // Close after 2 seconds
+            setTimeout(() => {
+                onClose()
+            }, 2000)
+        } catch (error: any) {
+            const errorMsg = error.response?.data?.error || error.message || 'Failed to save foods'
+            console.error('❌ Save error:', errorMsg)
+            setSaveStatus({ saving: false, saved: false, error: errorMsg })
         }
     }
 
-    const totals = calculateTotalNutrition()
+    /**
+     * Remove a food from detection list
+     */
+    const removeFood = (id: string) => {
+        setDetectedFoods(prev => prev.filter(f => f.id !== id))
+    }
+
+    /**
+     * Clear all detections
+     */
+    const clearAllDetections = () => {
+        setDetectedFoods([])
+    }
 
     return (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur z-50 flex flex-col">
+        <div className="fixed inset-0 bg-black/95 backdrop-blur z-50 flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 flex justify-between items-center">
-                <div>
-                    <h2 className="text-xl font-bold text-white">🍔 Food Detection Camera</h2>
-                    <p className="text-xs text-purple-100">Real-time calorie & nutrition analyzer</p>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/50 bg-slate-900/50">
+                <div className="flex items-center gap-3">
+                    <div className="text-3xl">🎥</div>
+                    <div>
+                        <h2 className="text-xl font-bold text-white">Food Detection</h2>
+                        <p className="text-xs text-slate-400">
+                            {modelLoaded ? '✅ Ready' : '⏳ Loading model...'} •
+                            {detectedFoods.length > 0 && ` ${detectedFoods.length} item${detectedFoods.length !== 1 ? 's' : ''}`}
+                        </p>
+                    </div>
                 </div>
+
                 <button
                     onClick={onClose}
-                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition"
+                    className="p-2 hover:bg-slate-800 rounded-lg transition text-slate-400 hover:text-white"
+                    title="Close camera"
                 >
-                    ✕ Close
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
 
             {/* Main Content */}
             <div className="flex-1 flex gap-4 p-4 overflow-hidden">
                 {/* Camera Feed */}
-                <div className="flex-1 relative rounded-xl overflow-hidden bg-black">
+                <div className="flex-1 relative rounded-2xl overflow-hidden bg-black border border-slate-700/50 shadow-2xl">
                     {loading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
-                            <div className="text-center">
-                                <div className="animate-spin text-4xl mb-3">🔄</div>
-                                <p className="text-white font-semibold">{modelLoaded ? 'Initializing camera...' : 'Loading AI model...'}</p>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-black z-10">
+                            <div className="text-center space-y-4">
+                                <div className="animate-spin text-5xl">⚙️</div>
+                                <div>
+                                    <p className="text-white font-semibold text-lg">
+                                        {modelLoaded ? 'Initializing camera...' : 'Loading AI model...'}
+                                    </p>
+                                    <p className="text-slate-400 text-sm mt-1">Please wait</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {cameraError && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-red-900/30 z-10">
+                            <div className="text-center text-white">
+                                <p className="text-2xl mb-2">❌</p>
+                                <p className="font-semibold">{cameraError}</p>
+                                <p className="text-sm text-slate-300 mt-2">Check camera permissions</p>
                             </div>
                         </div>
                     )}
@@ -230,87 +456,137 @@ export function FoodDetectionCamera({ onDetected, onClose }: { onDetected?: (foo
                     <video
                         ref={videoRef}
                         className="w-full h-full object-cover"
-                        style={{ transform: 'scaleX(-1)' }} // Mirror for selfie-like view
+                        style={{ transform: 'scaleX(-1)' }}
+                        autoPlay
+                        playsInline
                     />
 
                     <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
-                    {/* Model Status */}
-                    {modelLoaded && (
-                        <div className="absolute top-4 left-4 bg-green-500/80 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                            ✅ Model Ready
+                    {modelLoaded && !loading && (
+                        <div className="absolute top-4 left-4 flex items-center gap-2 bg-emerald-500/90 text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg">
+                            <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                            Live Detection
                         </div>
                     )}
                 </div>
 
-                {/* Detection Results */}
-                <div className="w-96 bg-slate-900/80 backdrop-blur rounded-xl p-4 overflow-y-auto border border-purple-500/30">
-                    <h3 className="font-bold text-lg text-white mb-4">📊 Detected Foods</h3>
+                {/* Detection Results Panel */}
+                <div className="w-96 bg-slate-900/70 backdrop-blur-sm rounded-2xl p-4 overflow-hidden flex flex-col border border-slate-700/50 shadow-2xl">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-lg text-white flex items-center gap-2">
+                            <span>📊</span>
+                            Detected Foods
+                        </h3>
+                        {detectedFoods.length > 0 && (
+                            <button
+                                onClick={clearAllDetections}
+                                className="text-xs text-slate-400 hover:text-red-400 transition"
+                            >
+                                Clear
+                            </button>
+                        )}
+                    </div>
 
-                    {detectedFoods.length === 0 ? (
-                        <div className="text-center py-12 text-slate-400">
-                            <p className="text-xl mb-2">🍽️</p>
-                            <p>Show food to the camera...</p>
-                            <p className="text-xs mt-2">Detecting fruits, vegetables, dishes, and more</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {/* Detected Items */}
-                            {detectedFoods.map((food, i) => (
-                                <div key={i} className="bg-gradient-to-r from-purple-600/30 to-blue-600/30 border border-purple-500/50 rounded-lg p-3">
+                    {/* Foods List */}
+                    <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-2">
+                        {detectedFoods.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-400 py-12">
+                                <p className="text-3xl mb-2">🍽️</p>
+                                <p className="font-medium">No foods detected</p>
+                                <p className="text-xs mt-2">Point camera at food items</p>
+                            </div>
+                        ) : (
+                            detectedFoods.map((food) => (
+                                <div
+                                    key={food.id}
+                                    className="group bg-gradient-to-r from-slate-800/50 to-slate-700/30 border border-slate-600/50 rounded-xl p-3 hover:border-slate-500/80 transition"
+                                >
                                     <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <p className="font-bold text-white text-lg">{food.label}</p>
-                                            <p className="text-xs text-purple-200">{food.unit}</p>
+                                        <div className="flex-1">
+                                            <p className="font-bold text-white text-sm">{food.label}</p>
+                                            <p className="text-xs text-slate-400">{food.unit}</p>
                                         </div>
-                                        <span className="bg-green-500/80 text-white text-xs font-bold px-2 py-1 rounded">
-                                            {food.confidence}%
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="bg-green-500/80 text-white text-xs font-bold px-2 py-1 rounded-lg">
+                                                {food.confidence}%
+                                            </span>
+                                            <button
+                                                onClick={() => removeFood(food.id)}
+                                                className="opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-red-400 text-sm"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-2 text-xs">
-                                        <div className="bg-black/40 rounded p-2">
+                                        <div className="bg-black/40 rounded-lg p-2">
                                             <p className="text-slate-400">Calories</p>
-                                            <p className="font-bold text-orange-400 text-lg">{food.calories}</p>
+                                            <p className="font-bold text-orange-400">{food.calories}</p>
                                         </div>
-                                        <div className="bg-black/40 rounded p-2">
+                                        <div className="bg-black/40 rounded-lg p-2">
                                             <p className="text-slate-400">Protein</p>
-                                            <p className="font-bold text-green-400 text-lg">{food.protein}g</p>
+                                            <p className="font-bold text-green-400">{food.protein}g</p>
                                         </div>
-                                        <div className="bg-black/40 rounded p-2">
+                                        <div className="bg-black/40 rounded-lg p-2">
                                             <p className="text-slate-400">Carbs</p>
-                                            <p className="font-bold text-blue-400 text-lg">{food.carbs}g</p>
+                                            <p className="font-bold text-blue-400">{food.carbs}g</p>
                                         </div>
-                                        <div className="bg-black/40 rounded p-2">
+                                        <div className="bg-black/40 rounded-lg p-2">
                                             <p className="text-slate-400">Fat</p>
-                                            <p className="font-bold text-red-400 text-lg">{food.fat}g</p>
+                                            <p className="font-bold text-red-400">{food.fat}g</p>
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                            ))
+                        )}
+                    </div>
 
-                            {/* Totals */}
-                            {detectedFoods.length > 0 && (
-                                <div className="sticky bottom-0 bg-gradient-to-t from-slate-900 to-slate-900/80 mt-4 pt-4 border-t border-purple-500/30">
-                                    <p className="font-bold text-white mb-3 text-sm">📈 Total Nutrition</p>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        <div className="text-center">
-                                            <p className="text-slate-400 text-xs">Kcal</p>
-                                            <p className="font-bold text-orange-400">{totals.calories}</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-slate-400 text-xs">Protein</p>
-                                            <p className="font-bold text-green-400">{totals.protein.toFixed(1)}g</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-slate-400 text-xs">Carbs</p>
-                                            <p className="font-bold text-blue-400">{totals.carbs.toFixed(1)}g</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-slate-400 text-xs">Fat</p>
-                                            <p className="font-bold text-red-400">{totals.fat.toFixed(1)}g</p>
-                                        </div>
-                                    </div>
+                    {/* Totals & Action */}
+                    {detectedFoods.length > 0 && (
+                        <div className="space-y-3 border-t border-slate-600/30 pt-4">
+                            <div className="grid grid-cols-4 gap-2">
+                                <div className="text-center bg-black/40 rounded-lg p-2">
+                                    <p className="text-slate-400 text-xs">Kcal</p>
+                                    <p className="font-bold text-orange-400 text-sm">{totals.calories}</p>
+                                </div>
+                                <div className="text-center bg-black/40 rounded-lg p-2">
+                                    <p className="text-slate-400 text-xs">Protein</p>
+                                    <p className="font-bold text-green-400 text-sm">{totals.protein.toFixed(1)}g</p>
+                                </div>
+                                <div className="text-center bg-black/40 rounded-lg p-2">
+                                    <p className="text-slate-400 text-xs">Carbs</p>
+                                    <p className="font-bold text-blue-400 text-sm">{totals.carbs.toFixed(1)}g</p>
+                                </div>
+                                <div className="text-center bg-black/40 rounded-lg p-2">
+                                    <p className="text-slate-400 text-xs">Fat</p>
+                                    <p className="font-bold text-red-400 text-sm">{totals.fat.toFixed(1)}g</p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={saveFoodsToBackend}
+                                disabled={saveStatus.saving || saveStatus.saved}
+                                className={`w-full py-3 rounded-xl font-semibold text-white transition-all ${saveStatus.saved
+                                    ? 'bg-emerald-600 text-emerald-100'
+                                    : saveStatus.saving
+                                        ? 'bg-slate-700 opacity-75 cursor-wait'
+                                        : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 active:scale-95 shadow-lg'
+                                    }`}
+                            >
+                                {saveStatus.saved ? (
+                                    <>✅ Saved - Closing...</>
+                                ) : saveStatus.saving ? (
+                                    <>💾 Saving {detectedFoods.length} item{detectedFoods.length !== 1 ? 's' : ''}...</>
+                                ) : (
+                                    <>💾 Save {detectedFoods.length} item{detectedFoods.length !== 1 ? 's' : ''}</>
+                                )}
+                            </button>
+
+                            {saveStatus.error && (
+                                <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-xs">
+                                    ❌ {saveStatus.error}
                                 </div>
                             )}
                         </div>
@@ -318,9 +594,9 @@ export function FoodDetectionCamera({ onDetected, onClose }: { onDetected?: (foo
                 </div>
             </div>
 
-            {/* Footer Info */}
-            <div className="bg-slate-800/50 p-3 text-xs text-slate-400 border-t border-slate-700">
-                <p>💡 <strong>Tip:</strong> Point camera at food items. AI detects and shows calories, protein, carbs, and fat. Works best with clear, well-lit items.</p>
+            {/* Footer */}
+            <div className="bg-slate-900/50 border-t border-slate-700/50 px-6 py-3 text-xs text-slate-400">
+                <p>💡 <strong>Tips:</strong> Ensure good lighting • Keep items 30cm-1m from camera • Works best with single items initially • Detects fruits, vegetables, dishes, and more</p>
             </div>
         </div>
     )

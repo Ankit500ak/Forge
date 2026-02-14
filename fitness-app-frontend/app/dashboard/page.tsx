@@ -16,6 +16,7 @@ import GameStats from '@/components/game-stats'
 import PowerAnalysisSection from '@/components/dashboard/power-analysis-section'
 import MovementTrackingChart from '@/components/dashboard/movementtrackingchart'
 import { FoodDetectionCamera } from '@/components/food/FoodDetectionCamera'
+import { CalorieHistoryChart } from '@/components/food/CalorieHistoryChart'
 import { useFoodDetection } from '@/hooks/useFoodDetection'
 import apiClient from '@/lib/api-client'
 
@@ -442,6 +443,9 @@ function DashboardContent() {
               </button>
             </div>
           </div>
+
+          {/* Calorie History & Tracking */}
+          <CalorieHistoryChart />
 
           {/* Power Analysis Radar */}
           <PowerAnalysisSection />
