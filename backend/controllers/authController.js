@@ -1,11 +1,16 @@
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Initialize Supabase client (optional - only if credentials provided)
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+} else {
+  console.warn('⚠️  Supabase credentials not configured - auth using Supabase will be disabled');
+}
 
 // ============================================================================
 // MIDDLEWARE FUNCTIONS
@@ -18,25 +23,25 @@ const supabase = createClient(
 export const authenticate = async (req, res, next) => {
   try {
     console.log('[Auth Middleware] Starting authentication...');
-    
+
     // Extract token from Authorization header
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader) {
       console.log('[Auth Middleware] ❌ No authorization header provided');
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'No token provided',
-        error: 'MissingToken' 
+        error: 'MissingToken'
       });
     }
 
     const token = authHeader.split(' ')[1];
-    
+
     if (!token) {
       console.log('[Auth Middleware] ❌ Token missing from authorization header');
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'No token provided',
-        error: 'MissingToken' 
+        error: 'MissingToken'
       });
     }
 
@@ -47,40 +52,40 @@ export const authenticate = async (req, res, next) => {
       console.log('[Auth Middleware] ✅ Token verified successfully');
     } catch (verifyErr) {
       console.error('[Auth Middleware] ❌ Token verification failed:', verifyErr.message);
-      
+
       // Provide specific error messages for different JWT errors
       if (verifyErr.name === 'TokenExpiredError') {
-        return res.status(401).json({ 
-          message: 'Token expired', 
+        return res.status(401).json({
+          message: 'Token expired',
           error: 'TokenExpiredError',
-          expiredAt: verifyErr.expiredAt 
+          expiredAt: verifyErr.expiredAt
         });
       } else if (verifyErr.name === 'JsonWebTokenError') {
-        return res.status(401).json({ 
-          message: 'Invalid token', 
-          error: 'JsonWebTokenError' 
+        return res.status(401).json({
+          message: 'Invalid token',
+          error: 'JsonWebTokenError'
         });
       } else if (verifyErr.name === 'NotBeforeError') {
-        return res.status(401).json({ 
-          message: 'Token not active', 
+        return res.status(401).json({
+          message: 'Token not active',
           error: 'NotBeforeError',
           notBefore: verifyErr.date
         });
       }
-      
-      return res.status(401).json({ 
-        message: 'Invalid token', 
-        error: verifyErr.message 
+
+      return res.status(401).json({
+        message: 'Invalid token',
+        error: verifyErr.message
       });
     }
-    
+
     const userId = decoded.userId;
 
     if (!userId) {
       console.error('[Auth Middleware] ❌ No userId in token payload');
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'Invalid token payload',
-        error: 'MissingUserId' 
+        error: 'MissingUserId'
       });
     }
 
@@ -95,15 +100,15 @@ export const authenticate = async (req, res, next) => {
 
     if (userError) {
       console.error('[Auth Middleware] ❌ Database error checking user:', userError.message);
-      return res.status(500).json({ 
-        message: 'Database error', 
-        error: userError.message 
+      return res.status(500).json({
+        message: 'Database error',
+        error: userError.message
       });
     }
 
     if (!user) {
       console.error('[Auth Middleware] ❌ User not found in database:', userId);
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'User not found. Please complete registration.',
         error: 'UserNotFound',
         requiresRegistration: true
@@ -113,9 +118,9 @@ export const authenticate = async (req, res, next) => {
     // Check if user account is active
     if (user.is_active === false) {
       console.error('[Auth Middleware] ❌ User account is inactive:', userId);
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Account is inactive. Please contact support.',
-        error: 'AccountInactive' 
+        error: 'AccountInactive'
       });
     }
 
@@ -123,19 +128,19 @@ export const authenticate = async (req, res, next) => {
 
     // Attach user info to request object for downstream use
     req.userId = userId;
-    req.user = { 
+    req.user = {
       id: userId,
       email: user.email,
-      role: user.role 
+      role: user.role
     };
-    
+
     next();
   } catch (error) {
     console.error('[Auth Middleware] ❌ Unexpected authentication error:', error.message);
     console.error('[Auth Middleware] Stack trace:', error.stack);
-    res.status(500).json({ 
-      message: 'Authentication error', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Authentication error',
+      error: error.message
     });
   }
 };
@@ -148,9 +153,9 @@ export const authenticate = async (req, res, next) => {
 export const optionalAuthenticate = async (req, res, next) => {
   try {
     console.log('[Optional Auth] Starting optional authentication...');
-    
+
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader) {
       console.log('[Optional Auth] No token provided, continuing as anonymous');
       req.userId = null;
@@ -159,7 +164,7 @@ export const optionalAuthenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    
+
     if (!token) {
       console.log('[Optional Auth] Token missing, continuing as anonymous');
       req.userId = null;
@@ -182,10 +187,10 @@ export const optionalAuthenticate = async (req, res, next) => {
 
         if (!error && user && user.is_active !== false) {
           req.userId = userId;
-          req.user = { 
+          req.user = {
             id: userId,
             email: user.email,
-            role: user.role 
+            role: user.role
           };
           console.log(`[Optional Auth] ✅ User authenticated: ${userId}`);
         } else {
@@ -217,7 +222,7 @@ export const optionalAuthenticate = async (req, res, next) => {
 export const authenticateAdmin = async (req, res, next) => {
   try {
     console.log('[Admin Auth] Starting admin authentication...');
-    
+
     // First, run standard authentication
     await new Promise((resolve, reject) => {
       authenticate(req, res, (err) => {
@@ -231,9 +236,9 @@ export const authenticateAdmin = async (req, res, next) => {
 
     if (!userId) {
       console.log('[Admin Auth] ❌ No authenticated user');
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'Authentication required',
-        error: 'Unauthenticated' 
+        error: 'Unauthenticated'
       });
     }
 
@@ -245,17 +250,17 @@ export const authenticateAdmin = async (req, res, next) => {
 
     if (error) {
       console.error('[Admin Auth] ❌ Error checking admin status:', error.message);
-      return res.status(500).json({ 
-        message: 'Failed to verify admin status', 
-        error: error.message 
+      return res.status(500).json({
+        message: 'Failed to verify admin status',
+        error: error.message
       });
     }
 
     if (!user || user.role !== 'admin') {
       console.log(`[Admin Auth] ⛔ Admin access denied for user: ${userId} (role: ${user?.role || 'unknown'})`);
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Admin access required',
-        error: 'Forbidden' 
+        error: 'Forbidden'
       });
     }
 
@@ -263,9 +268,9 @@ export const authenticateAdmin = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('[Admin Auth] ❌ Error in admin authentication:', error.message);
-    res.status(500).json({ 
-      message: 'Authentication error', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Authentication error',
+      error: error.message
     });
   }
 };
@@ -293,7 +298,7 @@ async function checkProfileCompletion(userId) {
     if (statsError && statsError.code !== 'PGRST116') {
       console.error('[Profile Check] Error checking user_stats:', statsError);
     }
-    
+
     if (!stats) {
       missingFields.push('user_stats');
       isComplete = false;
@@ -309,7 +314,7 @@ async function checkProfileCompletion(userId) {
     if (progressionError && progressionError.code !== 'PGRST116') {
       console.error('[Profile Check] Error checking user_progression:', progressionError);
     }
-    
+
     if (!progression) {
       missingFields.push('user_progression');
       isComplete = false;
@@ -325,7 +330,7 @@ async function checkProfileCompletion(userId) {
     if (fitnessError && fitnessError.code !== 'PGRST116' && fitnessError.code !== '42501') {
       console.error('[Profile Check] Error checking fitness_profiles:', fitnessError);
     }
-    
+
     if (!fitness) {
       missingFields.push('fitness_profiles');
       isComplete = false;
@@ -467,12 +472,12 @@ async function initializeUserRecords(userId, additionalData = {}) {
  * Body: { email, password, name, age, gender, fitness_level, ... }
  */
 export const register = async (req, res) => {
-  const { 
-    email, 
-    password, 
-    name, 
-    age, 
-    gender, 
+  const {
+    email,
+    password,
+    name,
+    age,
+    gender,
     fitness_level,
     // Additional personal metrics
     height,
@@ -498,25 +503,25 @@ export const register = async (req, res) => {
     motivationLevel,
     walletAddress
   } = req.body;
-  
+
   console.log('[Register] Registration attempt for email:', email);
   console.log('[Register] Additional data received:', {
-    age, 
-    gender, 
-    height, 
-    weight, 
+    age,
+    gender,
+    height,
+    weight,
     fitnessLevel: fitness_level,
     goals: goals?.length || 0,
     preferredWorkouts: preferredWorkouts?.length || 0,
     walletAddress: walletAddress ? 'provided' : 'not provided'
   });
-  
+
   // Validate input
   if (!email || !password) {
     console.log('[Register] ❌ Missing required fields');
-    return res.status(400).json({ 
+    return res.status(400).json({
       message: 'Email and password are required.',
-      error: 'MissingFields' 
+      error: 'MissingFields'
     });
   }
 
@@ -524,18 +529,18 @@ export const register = async (req, res) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     console.log('[Register] ❌ Invalid email format:', email);
-    return res.status(400).json({ 
+    return res.status(400).json({
       message: 'Invalid email format.',
-      error: 'InvalidEmail' 
+      error: 'InvalidEmail'
     });
   }
 
   // Validate password strength
   if (password.length < 6) {
     console.log('[Register] ❌ Password too short');
-    return res.status(400).json({ 
+    return res.status(400).json({
       message: 'Password must be at least 6 characters long.',
-      error: 'WeakPassword' 
+      error: 'WeakPassword'
     });
   }
 
@@ -550,9 +555,9 @@ export const register = async (req, res) => {
 
     if (existingUser) {
       console.log('[Register] ❌ User already exists:', email);
-      return res.status(409).json({ 
+      return res.status(409).json({
         message: 'An account with this email already exists.',
-        error: 'UserExists' 
+        error: 'UserExists'
       });
     }
 
@@ -570,26 +575,26 @@ export const register = async (req, res) => {
 
     if (authError) {
       console.error('[Register] ❌ Supabase Auth signup error:', authError.message);
-      
+
       // Handle specific Supabase errors
       if (authError.message.includes('already registered')) {
-        return res.status(409).json({ 
+        return res.status(409).json({
           message: 'An account with this email already exists.',
-          error: 'UserExists' 
+          error: 'UserExists'
         });
       }
-      
-      return res.status(400).json({ 
-        message: 'Registration failed', 
-        error: authError.message 
+
+      return res.status(400).json({
+        message: 'Registration failed',
+        error: authError.message
       });
     }
 
     if (!authData.user) {
       console.error('[Register] ❌ No user returned from Supabase Auth');
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Registration failed - no user created',
-        error: 'RegistrationFailed' 
+        error: 'RegistrationFailed'
       });
     }
 
@@ -620,7 +625,7 @@ export const register = async (req, res) => {
 
     if (userError) {
       console.error('[Register] ❌ Error creating user profile:', userError.message);
-      
+
       // Attempt to clean up auth user if profile creation failed
       try {
         console.log('[Register] Attempting to clean up auth user...');
@@ -629,10 +634,10 @@ export const register = async (req, res) => {
       } catch (cleanupErr) {
         console.error('[Register] ❌ Cleanup failed:', cleanupErr.message);
       }
-      
-      return res.status(500).json({ 
-        message: 'Registration failed while creating user profile', 
-        error: userError.message 
+
+      return res.status(500).json({
+        message: 'Registration failed while creating user profile',
+        error: userError.message
       });
     }
 
@@ -700,9 +705,9 @@ export const register = async (req, res) => {
   } catch (err) {
     console.error('[Register] ❌ Unexpected registration error:', err.message);
     console.error('[Register] Stack trace:', err.stack);
-    res.status(500).json({ 
-      message: 'Server error during registration', 
-      error: err.message 
+    res.status(500).json({
+      message: 'Server error during registration',
+      error: err.message
     });
   }
 };
@@ -714,15 +719,15 @@ export const register = async (req, res) => {
  */
 export const login = async (req, res) => {
   const { email, password } = req.body;
-  
+
   console.log('[Login] Login attempt for email:', email);
-  
+
   // Validate input
   if (!email || !password) {
     console.log('[Login] ❌ Missing required fields');
-    return res.status(400).json({ 
+    return res.status(400).json({
       message: 'Email and password are required.',
-      error: 'MissingFields' 
+      error: 'MissingFields'
     });
   }
 
@@ -736,33 +741,33 @@ export const login = async (req, res) => {
 
     if (error) {
       console.error('[Login] ❌ Authentication failed:', error.message);
-      
+
       // Handle specific error cases
       if (error.message.includes('Invalid login credentials')) {
-        return res.status(401).json({ 
-          message: 'Invalid email or password', 
-          error: 'InvalidCredentials' 
+        return res.status(401).json({
+          message: 'Invalid email or password',
+          error: 'InvalidCredentials'
         });
       }
-      
+
       if (error.message.includes('Email not confirmed')) {
-        return res.status(401).json({ 
-          message: 'Please verify your email before logging in', 
-          error: 'EmailNotConfirmed' 
+        return res.status(401).json({
+          message: 'Please verify your email before logging in',
+          error: 'EmailNotConfirmed'
         });
       }
-      
-      return res.status(401).json({ 
-        message: 'Login failed', 
-        error: error.message 
+
+      return res.status(401).json({
+        message: 'Login failed',
+        error: error.message
       });
     }
 
     if (!data.user) {
       console.error('[Login] ❌ No user data returned');
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'Login failed',
-        error: 'NoUserData' 
+        error: 'NoUserData'
       });
     }
 
@@ -770,13 +775,13 @@ export const login = async (req, res) => {
 
     // Fetch user profile from database
     console.log('[Login] Fetching user profile by auth ID:', data.user.id);
-    
+
     // Use service role client for direct access (bypasses RLS)
     const supabaseAdmin = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
-    
+
     let { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
       .select('id, email, name, age, gender, fitness_level, role, is_active, level, total_xp')
@@ -793,9 +798,9 @@ export const login = async (req, res) => {
         .select('id, email, name, age, gender, fitness_level, role, is_active, level, total_xp')
         .eq('email', data.user.email.toLowerCase())
         .maybeSingle();
-      
+
       console.log('[Login] Email lookup result - emailProfile:', emailProfile ? 'FOUND' : 'NOT_FOUND', 'emailError:', emailError?.message);
-      
+
       if (emailProfile) {
         console.log('[Login] ✅ User found by email, using profile from database...');
         userProfile = emailProfile;
@@ -807,15 +812,15 @@ export const login = async (req, res) => {
 
     if (profileError) {
       console.error('[Login] ❌ Error fetching user profile:', profileError.message);
-      return res.status(500).json({ 
-        message: 'Failed to fetch user profile', 
-        error: profileError.message 
+      return res.status(500).json({
+        message: 'Failed to fetch user profile',
+        error: profileError.message
       });
     }
 
     if (!userProfile) {
       console.error('[Login] ❌ User profile not found for auth ID:', data.user.id, 'or email:', data.user.email);
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'User profile not found. Please complete registration.',
         error: 'ProfileNotFound',
         requiresRegistration: true
@@ -827,9 +832,9 @@ export const login = async (req, res) => {
     // Check if account is active
     if (userProfile.is_active === false) {
       console.error('[Login] ❌ Account is inactive:', userProfile.id);
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Your account has been deactivated. Please contact support.',
-        error: 'AccountInactive' 
+        error: 'AccountInactive'
       });
     }
 
@@ -841,14 +846,14 @@ export const login = async (req, res) => {
       const initResults = await initializeUserRecords(userProfile.id, {
         fitnessLevel: userProfile.fitness_level || 'beginner'
       });
-      
+
       console.log('[Login] Init results:', {
         stats: initResults.stats ? 'created' : 'skipped',
         progression: initResults.progression ? 'created' : 'skipped',
         fitness: initResults.fitness ? 'created' : 'skipped',
         errors: initResults.errors.length
       });
-      
+
       if (initResults.errors.length > 0) {
         console.warn('[Login] ⚠️ Some records failed to initialize:');
         initResults.errors.forEach(err => {
@@ -891,9 +896,9 @@ export const login = async (req, res) => {
   } catch (err) {
     console.error('[Login] ❌ Unexpected login error:', err.message);
     console.error('[Login] Stack trace:', err.stack);
-    res.status(500).json({ 
-      message: 'Server error during login', 
-      error: err.message 
+    res.status(500).json({
+      message: 'Server error during login',
+      error: err.message
     });
   }
 };
@@ -906,22 +911,22 @@ export const login = async (req, res) => {
 export const logout = async (req, res) => {
   try {
     const userId = req.userId;
-    
+
     console.log('[Logout] Logout request for user:', userId || 'anonymous');
-    
+
     if (userId) {
       console.log(`[Logout] ✅ User logged out: ${userId}`);
     }
-    
-    res.json({ 
+
+    res.json({
       message: 'Logout successful',
-      success: true 
+      success: true
     });
   } catch (err) {
     console.error('[Logout] ❌ Logout error:', err.message);
-    res.status(500).json({ 
-      message: 'Server error during logout', 
-      error: err.message 
+    res.status(500).json({
+      message: 'Server error during logout',
+      error: err.message
     });
   }
 };
@@ -934,14 +939,14 @@ export const logout = async (req, res) => {
 export const getCurrentUser = async (req, res) => {
   try {
     const userId = req.userId;
-    
+
     console.log('[Get Current User] Fetching profile for:', userId);
 
     if (!userId) {
       console.log('[Get Current User] ❌ No authenticated user');
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'Not authenticated',
-        error: 'Unauthenticated' 
+        error: 'Unauthenticated'
       });
     }
 
@@ -954,15 +959,15 @@ export const getCurrentUser = async (req, res) => {
 
     if (error) {
       console.error('[Get Current User] ❌ Database error:', error.message);
-      return res.status(500).json({ 
-        message: 'Failed to fetch user profile', 
-        error: error.message 
+      return res.status(500).json({
+        message: 'Failed to fetch user profile',
+        error: error.message
       });
     }
 
     if (!user) {
       console.error('[Get Current User] ❌ User not found:', userId);
-      return res.status(404).json({ 
+      return res.status(404).json({
         message: 'User not found',
         error: 'UserNotFound',
         requiresRegistration: true
@@ -995,9 +1000,9 @@ export const getCurrentUser = async (req, res) => {
 
   } catch (err) {
     console.error('[Get Current User] ❌ Unexpected error:', err.message);
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: err.message 
+    res.status(500).json({
+      message: 'Server error',
+      error: err.message
     });
   }
 };
@@ -1016,9 +1021,9 @@ export const completeProfile = async (req, res) => {
     console.log('[Complete Profile] Profile completion request for:', userId);
 
     if (!userId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'Not authenticated',
-        error: 'Unauthenticated' 
+        error: 'Unauthenticated'
       });
     }
 
@@ -1037,9 +1042,9 @@ export const completeProfile = async (req, res) => {
 
       if (updateError) {
         console.error('[Complete Profile] ❌ Error updating profile:', updateError);
-        return res.status(500).json({ 
-          message: 'Failed to update profile', 
-          error: updateError.message 
+        return res.status(500).json({
+          message: 'Failed to update profile',
+          error: updateError.message
         });
       }
     }
@@ -1049,8 +1054,8 @@ export const completeProfile = async (req, res) => {
 
     if (initResults.errors.length > 0) {
       console.error('[Complete Profile] ❌ Failed to initialize some records:', initResults.errors);
-      return res.status(500).json({ 
-        message: 'Profile update incomplete', 
+      return res.status(500).json({
+        message: 'Profile update incomplete',
         error: 'Failed to initialize some records',
         errors: initResults.errors
       });
@@ -1065,9 +1070,9 @@ export const completeProfile = async (req, res) => {
 
   } catch (err) {
     console.error('[Complete Profile] ❌ Unexpected error:', err.message);
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: err.message 
+    res.status(500).json({
+      message: 'Server error',
+      error: err.message
     });
   }
 };
@@ -1080,19 +1085,19 @@ export const completeProfile = async (req, res) => {
 export const refresh = async (req, res) => {
   try {
     console.log('[Refresh Token] Token refresh request');
-    
+
     const token = req.body.token || req.headers.authorization?.split(' ')[1];
 
     if (!token) {
       console.log('[Refresh Token] ❌ No token provided');
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Token is required',
-        error: 'MissingToken' 
+        error: 'MissingToken'
       });
     }
 
     const newToken = await refreshToken(token);
-    
+
     console.log('[Refresh Token] ✅ Token refreshed successfully');
 
     res.json({
@@ -1102,17 +1107,17 @@ export const refresh = async (req, res) => {
 
   } catch (err) {
     console.error('[Refresh Token] ❌ Token refresh failed:', err.message);
-    
+
     if (err.message.includes('User not found')) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'User not found',
         error: 'UserNotFound',
         requiresLogin: true
       });
     }
-    
-    res.status(401).json({ 
-      message: 'Token refresh failed', 
+
+    res.status(401).json({
+      message: 'Token refresh failed',
       error: err.message,
       requiresLogin: true
     });
@@ -1126,14 +1131,14 @@ export const refresh = async (req, res) => {
  */
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
-  
+
   console.log('[Forgot Password] Password reset request for:', email);
 
   if (!email) {
     console.log('[Forgot Password] ❌ Missing email');
-    return res.status(400).json({ 
+    return res.status(400).json({
       message: 'Email is required',
-      error: 'MissingEmail' 
+      error: 'MissingEmail'
     });
   }
 
@@ -1155,9 +1160,9 @@ export const forgotPassword = async (req, res) => {
 
   } catch (err) {
     console.error('[Forgot Password] ❌ Unexpected error:', err.message);
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: err.message 
+    res.status(500).json({
+      message: 'Server error',
+      error: err.message
     });
   }
 };
@@ -1171,30 +1176,30 @@ export const forgotPassword = async (req, res) => {
 export const changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   const userId = req.userId;
-  
+
   console.log('[Change Password] Password change request for user:', userId);
 
   if (!currentPassword || !newPassword) {
     console.log('[Change Password] ❌ Missing required fields');
-    return res.status(400).json({ 
+    return res.status(400).json({
       message: 'Current password and new password are required',
-      error: 'MissingFields' 
+      error: 'MissingFields'
     });
   }
 
   if (newPassword.length < 6) {
     console.log('[Change Password] ❌ New password too short');
-    return res.status(400).json({ 
+    return res.status(400).json({
       message: 'New password must be at least 6 characters long',
-      error: 'WeakPassword' 
+      error: 'WeakPassword'
     });
   }
 
   if (currentPassword === newPassword) {
     console.log('[Change Password] ❌ New password same as current');
-    return res.status(400).json({ 
+    return res.status(400).json({
       message: 'New password must be different from current password',
-      error: 'SamePassword' 
+      error: 'SamePassword'
     });
   }
 
@@ -1207,9 +1212,9 @@ export const changePassword = async (req, res) => {
 
     if (!user) {
       console.error('[Change Password] ❌ User not found');
-      return res.status(404).json({ 
+      return res.status(404).json({
         message: 'User not found',
-        error: 'UserNotFound' 
+        error: 'UserNotFound'
       });
     }
 
@@ -1220,9 +1225,9 @@ export const changePassword = async (req, res) => {
 
     if (signInError) {
       console.error('[Change Password] ❌ Current password incorrect');
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'Current password is incorrect',
-        error: 'InvalidCurrentPassword' 
+        error: 'InvalidCurrentPassword'
       });
     }
 
@@ -1232,9 +1237,9 @@ export const changePassword = async (req, res) => {
 
     if (updateError) {
       console.error('[Change Password] ❌ Password update failed:', updateError.message);
-      return res.status(400).json({ 
-        message: 'Password change failed', 
-        error: updateError.message 
+      return res.status(400).json({
+        message: 'Password change failed',
+        error: updateError.message
       });
     }
 
@@ -1247,9 +1252,9 @@ export const changePassword = async (req, res) => {
 
   } catch (err) {
     console.error('[Change Password] ❌ Unexpected error:', err.message);
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: err.message 
+    res.status(500).json({
+      message: 'Server error',
+      error: err.message
     });
   }
 };
@@ -1268,7 +1273,7 @@ export const generateToken = (userId, options = {}) => {
   }
 
   const expiresIn = options.expiresIn || process.env.JWT_EXPIRE || '7d';
-  
+
   const payload = {
     userId,
     iat: Math.floor(Date.now() / 1000),
@@ -1357,7 +1362,7 @@ export const refreshToken = async (oldToken) => {
 
     const newToken = generateToken(userId);
     console.log(`[Refresh Token] ✅ Token refreshed for user: ${userId}`);
-    
+
     return newToken;
   } catch (error) {
     console.error('[Refresh Token] ❌ Error refreshing token:', error.message);
@@ -1400,9 +1405,9 @@ export const initializeUserData = async (req, res) => {
     const userId = req.userId;
 
     if (!userId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'Not authenticated',
-        error: 'Unauthenticated' 
+        error: 'Unauthenticated'
       });
     }
 
@@ -1416,9 +1421,9 @@ export const initializeUserData = async (req, res) => {
       .single();
 
     if (userError || !user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         message: 'User not found',
-        error: 'UserNotFound' 
+        error: 'UserNotFound'
       });
     }
 
@@ -1436,9 +1441,9 @@ export const initializeUserData = async (req, res) => {
 
   } catch (err) {
     console.error('[Initialize] ❌ Error initializing user data:', err.message);
-    res.status(500).json({ 
-      message: 'Failed to initialize user data', 
-      error: err.message 
+    res.status(500).json({
+      message: 'Failed to initialize user data',
+      error: err.message
     });
   }
 };

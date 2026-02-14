@@ -1,89 +1,22 @@
 /**
- * Food Logging Service
+ * Food Logging Service (Mock/In-Memory)
  * Manages daily food intake logs and calorie tracking
- * 
- * Database schema:
- * - food_logs: Track each food item logged with nutritional info
- * - daily_summary: Aggregated daily calorie and nutrient totals
+ * Currently uses in-memory storage for rapid testing
+ * Can be extended to use PostgreSQL when database is ready
  */
 
-import supabase from '../config/supabaseClient.js';
+// In-memory storage for food logs (user_id -> array of logs)
+const foodLogs = new Map();
+const dailySummaries = new Map();
 
 class FoodLoggingService {
     /**
      * Initialize database tables (if they don't exist)
+     * Currently does nothing - using in-memory storage
      */
     static async initializeTables() {
-        try {
-            // Create food_logs table
-            const { error: createLogsTableError } = await supabase.rpc('exec', {
-                sql: `
-                    CREATE TABLE IF NOT EXISTS food_logs (
-                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                        user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-                        food_name VARCHAR(255) NOT NULL,
-                        calories INTEGER NOT NULL,
-                        protein DECIMAL(10, 2),
-                        carbs DECIMAL(10, 2),
-                        fats DECIMAL(10, 2),
-                        fiber DECIMAL(10, 2),
-                        sodium INTEGER,
-                        calcium INTEGER,
-                        iron DECIMAL(10, 2),
-                        vitamin_c DECIMAL(10, 2),
-                        folate INTEGER,
-                        serving_size VARCHAR(100),
-                        food_source VARCHAR(50) DEFAULT 'csv',
-                        image_url VARCHAR(500),
-                        confidence DECIMAL(4, 2),
-                        logged_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-
-                    CREATE INDEX IF NOT EXISTS idx_food_logs_user_id ON food_logs(user_id);
-                    CREATE INDEX IF NOT EXISTS idx_food_logs_logged_at ON food_logs(logged_at);
-                    CREATE INDEX IF NOT EXISTS idx_food_logs_user_logged_at ON food_logs(user_id, logged_at);
-                `
-            });
-
-            if (createLogsTableError && !createLogsTableError.message.includes('already exists')) {
-                console.error('Create logs table error:', createLogsTableError);
-            }
-
-            // Create daily_summary table
-            const { error: createSummaryTableError } = await supabase.rpc('exec', {
-                sql: `
-                    CREATE TABLE IF NOT EXISTS daily_summaries (
-                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                        user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-                        date DATE NOT NULL,
-                        total_calories INTEGER DEFAULT 0,
-                        total_protein DECIMAL(10, 2) DEFAULT 0,
-                        total_carbs DECIMAL(10, 2) DEFAULT 0,
-                        total_fats DECIMAL(10, 2) DEFAULT 0,
-                        total_fiber DECIMAL(10, 2) DEFAULT 0,
-                        meal_count INTEGER DEFAULT 0,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE(user_id, date)
-                    );
-
-                    CREATE INDEX IF NOT EXISTS idx_daily_summaries_user_id ON daily_summaries(user_id);
-                    CREATE INDEX IF NOT EXISTS idx_daily_summaries_date ON daily_summaries(date);
-                    CREATE INDEX IF NOT EXISTS idx_daily_summaries_user_date ON daily_summaries(user_id, date);
-                `
-            });
-
-            if (createSummaryTableError && !createSummaryTableError.message.includes('already exists')) {
-                console.error('Create summary table error:', createSummaryTableError);
-            }
-
-            console.log('✅ Food logging tables initialized');
-
-        } catch (error) {
-            console.error('❌ Error initializing tables:', error);
-        }
+        console.log('✅ Food logging service initialized (in-memory mode)');
+        return { status: 'success', message: 'Initialized' };
     }
 
     /**
@@ -95,40 +28,45 @@ class FoodLoggingService {
             if (!foodData.food_name) throw new Error('Food name is required');
             if (!foodData.calories && foodData.calories !== 0) throw new Error('Calories is required');
 
-            // Insert into food_logs
-            const { data: logData, error: logError } = await supabase
-                .from('food_logs')
-                .insert({
-                    user_id: userId,
-                    food_name: foodData.food_name,
-                    calories: Math.round(foodData.calories),
-                    protein: foodData.protein || null,
-                    carbs: foodData.carbs || null,
-                    fats: foodData.fats || null,
-                    fiber: foodData.fiber || null,
-                    sodium: foodData.sodium || null,
-                    calcium: foodData.calcium || null,
-                    iron: foodData.iron || null,
-                    vitamin_c: foodData.vitaminC || null,
-                    folate: foodData.folate || null,
-                    serving_size: foodData.servingSize || '1 serving',
-                    food_source: foodData.source || 'csv',
-                    image_url: foodData.imageUrl || null,
-                    confidence: foodData.confidence || null,
-                    logged_at: new Date().toISOString()
-                })
-                .select();
+            // Create log entry
+            const logEntry = {
+                id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                user_id: userId,
+                food_name: foodData.food_name,
+                calories: Math.round(foodData.calories),
+                protein: foodData.protein || 0,
+                carbs: foodData.carbs || 0,
+                fats: foodData.fats || 0,
+                fiber: foodData.fiber || 0,
+                sodium: foodData.sodium || 0,
+                calcium: foodData.calcium || 0,
+                iron: foodData.iron || 0,
+                vitamin_c: foodData.vitaminC || 0,
+                folate: foodData.folate || 0,
+                serving_size: foodData.servingSize || '1 serving',
+                food_source: foodData.source || 'csv',
+                image_url: foodData.imageUrl || null,
+                confidence: foodData.confidence || null,
+                logged_at: new Date().toISOString(),
+                created_at: new Date().toISOString()
+            };
 
-            if (logError) throw logError;
+            // Store in memory
+            if (!foodLogs.has(userId)) {
+                foodLogs.set(userId, []);
+            }
+            foodLogs.get(userId).push(logEntry);
 
             // Update daily summary
             const today = new Date().toISOString().split('T')[0];
             await this.updateDailySummary(userId, today);
 
+            console.log(`✅ Food logged: ${foodData.food_name} (${foodData.calories} cal) for user ${userId}`);
+
             return {
                 status: 'success',
                 message: 'Food logged successfully',
-                data: logData[0]
+                data: logEntry
             };
 
         } catch (error) {
@@ -145,39 +83,29 @@ class FoodLoggingService {
      */
     static async updateDailySummary(userId, date) {
         try {
-            // Get all food logs for the date
-            const { data: dailyLogs, error: fetchError } = await supabase
-                .from('food_logs')
-                .select('*')
-                .eq('user_id', userId)
-                .gte('logged_at', `${date}T00:00:00`)
-                .lte('logged_at', `${date}T23:59:59`);
-
-            if (fetchError) throw fetchError;
+            // Get all food logs for the user on this date
+            const userLogs = foodLogs.get(userId) || [];
+            const dateLogs = userLogs.filter(log => {
+                const logDate = log.logged_at.split('T')[0];
+                return logDate === date;
+            });
 
             // Calculate totals
             const totals = {
-                total_calories: dailyLogs.reduce((sum, log) => sum + (log.calories || 0), 0),
-                total_protein: dailyLogs.reduce((sum, log) => sum + (log.protein || 0), 0),
-                total_carbs: dailyLogs.reduce((sum, log) => sum + (log.carbs || 0), 0),
-                total_fats: dailyLogs.reduce((sum, log) => sum + (log.fats || 0), 0),
-                total_fiber: dailyLogs.reduce((sum, log) => sum + (log.fiber || 0), 0),
-                meal_count: dailyLogs.length
+                user_id: userId,
+                date: date,
+                total_calories: dateLogs.reduce((sum, log) => sum + (log.calories || 0), 0),
+                total_protein: dateLogs.reduce((sum, log) => sum + (log.protein || 0), 0),
+                total_carbs: dateLogs.reduce((sum, log) => sum + (log.carbs || 0), 0),
+                total_fats: dateLogs.reduce((sum, log) => sum + (log.fats || 0), 0),
+                total_fiber: dateLogs.reduce((sum, log) => sum + (log.fiber || 0), 0),
+                meal_count: dateLogs.length,
+                updated_at: new Date().toISOString()
             };
 
-            // Upsert daily summary
-            const { error: upsertError } = await supabase
-                .from('daily_summaries')
-                .upsert({
-                    user_id: userId,
-                    date: date,
-                    ...totals,
-                    updated_at: new Date().toISOString()
-                });
-
-            if (upsertError && !upsertError.message.includes('duplicate')) {
-                throw upsertError;
-            }
+            // Store daily summary
+            const summaryKey = `${userId}-${date}`;
+            dailySummaries.set(summaryKey, totals);
 
             return {
                 status: 'success',
@@ -200,41 +128,29 @@ class FoodLoggingService {
         try {
             const today = new Date().toISOString().split('T')[0];
 
-            // Get logs
-            const { data: logs, error: logsError } = await supabase
-                .from('food_logs')
-                .select('*')
-                .eq('user_id', userId)
-                .gte('logged_at', `${today}T00:00:00`)
-                .lte('logged_at', `${today}T23:59:59`)
-                .order('logged_at', { ascending: false });
-
-            if (logsError) throw logsError;
+            // Get logs for today
+            const userLogs = foodLogs.get(userId) || [];
+            const todayLogs = userLogs.filter(log => {
+                const logDate = log.logged_at.split('T')[0];
+                return logDate === today;
+            }).sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime());
 
             // Get summary
-            const { data: summary, error: summaryError } = await supabase
-                .from('daily_summaries')
-                .select('*')
-                .eq('user_id', userId)
-                .eq('date', today)
-                .single();
-
-            if (summaryError && summaryError.code !== 'PGRST116') { // PGRST116 = no rows
-                throw summaryError;
-            }
+            const summaryKey = `${userId}-${today}`;
+            const summary = dailySummaries.get(summaryKey) || {
+                total_calories: 0,
+                total_protein: 0,
+                total_carbs: 0,
+                total_fats: 0,
+                total_fiber: 0,
+                meal_count: 0
+            };
 
             return {
                 status: 'success',
                 date: today,
-                logs: logs || [],
-                summary: summary || {
-                    total_calories: 0,
-                    total_protein: 0,
-                    total_carbs: 0,
-                    total_fats: 0,
-                    total_fiber: 0,
-                    meal_count: 0
-                }
+                logs: todayLogs,
+                summary: summary
             };
 
         } catch (error) {
@@ -252,18 +168,34 @@ class FoodLoggingService {
     static async getWeeklySummary(userId) {
         try {
             const today = new Date();
-            const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-                .toISOString()
-                .split('T')[0];
+            const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-            const { data: summaries, error } = await supabase
-                .from('daily_summaries')
-                .select('*')
-                .eq('user_id', userId)
-                .gte('date', sevenDaysAgo)
-                .order('date', { ascending: false });
+            // Get all summaries for user in the last 7 days
+            const userLogs = foodLogs.get(userId) || [];
+            const weekLogs = userLogs.filter(log => {
+                const logDate = new Date(log.logged_at);
+                return logDate >= sevenDaysAgo && logDate <= today;
+            });
 
-            if (error) throw error;
+            // Group by date
+            const dateGroups = {};
+            weekLogs.forEach(log => {
+                const date = log.logged_at.split('T')[0];
+                if (!dateGroups[date]) {
+                    dateGroups[date] = [];
+                }
+                dateGroups[date].push(log);
+            });
+
+            // Calculate totals per day
+            const summaries = Object.entries(dateGroups).map(([date, logs]) => ({
+                date: date,
+                total_calories: logs.reduce((sum, log) => sum + (log.calories || 0), 0),
+                total_protein: logs.reduce((sum, log) => sum + (log.protein || 0), 0),
+                total_carbs: logs.reduce((sum, log) => sum + (log.carbs || 0), 0),
+                total_fats: logs.reduce((sum, log) => sum + (log.fats || 0), 0),
+                meal_count: logs.length
+            })).sort((a, b) => new Date(b.date) - new Date(a.date));
 
             // Calculate weekly totals
             const weeklyTotals = {
@@ -271,9 +203,9 @@ class FoodLoggingService {
                 total_protein: summaries.reduce((sum, day) => sum + (day.total_protein || 0), 0),
                 total_carbs: summaries.reduce((sum, day) => sum + (day.total_carbs || 0), 0),
                 total_fats: summaries.reduce((sum, day) => sum + (day.total_fats || 0), 0),
-                average_calories: Math.round(
-                    summaries.reduce((sum, day) => sum + (day.total_calories || 0), 0) / summaries.length
-                ),
+                average_calories: summaries.length > 0
+                    ? Math.round(summaries.reduce((sum, day) => sum + (day.total_calories || 0), 0) / summaries.length)
+                    : 0,
                 days_logged: summaries.length
             };
 
@@ -297,29 +229,25 @@ class FoodLoggingService {
      */
     static async deleteLog(userId, logId) {
         try {
-            // Get the log to find the date
-            const { data: log, error: fetchError } = await supabase
-                .from('food_logs')
-                .select('logged_at')
-                .eq('id', logId)
-                .eq('user_id', userId)
-                .single();
+            // Get all logs for user
+            const userLogs = foodLogs.get(userId) || [];
+            const logIndex = userLogs.findIndex(log => log.id === logId);
 
-            if (fetchError) throw fetchError;
+            if (logIndex === -1) {
+                throw new Error('Log entry not found');
+            }
 
-            // Delete the log
-            const { error: deleteError } = await supabase
-                .from('food_logs')
-                .delete()
-                .eq('id', logId)
-                .eq('user_id', userId);
+            // Get the date for recalculation
+            const log = userLogs[logIndex];
+            const logDate = log.logged_at.split('T')[0];
 
-            if (deleteError) throw deleteError;
+            // Remove the log
+            userLogs.splice(logIndex, 1);
 
             // Recalculate daily summary
-            const logDate = log.logged_at.split('T')[0];
             await this.updateDailySummary(userId, logDate);
 
+            console.log(`✅ Food log deleted: ${logId}`);
             return {
                 status: 'success',
                 message: 'Food log deleted'
