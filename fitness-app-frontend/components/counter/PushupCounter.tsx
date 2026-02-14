@@ -16,70 +16,152 @@ try {
 export function PushupCounter() {
   const [count, setCount] = useState(0)
   const [running, setRunning] = useState(false)
-  const [sensitivity, setSensitivity] = useState(1.0) // multiplier
-  const lastPeakRef = useRef<number>(0)
-  const lastStateRef = useRef<'neutral' | 'down' | 'up'>('neutral')
+  const [sensitivity, setSensitivity] = useState(1.0) // multiplier (0.5 to 2.0)
+
+  // Signal processing buffers
+  const accelHistoryRef = useRef<number[]>([])
+  const filteredHistoryRef = useRef<number[]>([])
+  const peaksRef = useRef<Array<{ time: number; value: number }>>([])
+
   const lastCountTimeRef = useRef<number>(0)
   const baselineRef = useRef<number | null>(null)
+  const lastPeakRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!running) return
 
     let unsub: any = null
 
-    const minInterval = 600 // ms between counts to avoid double counting
+    // Step detection parameters (tuned for realistic motion)
+    const MAX_HISTORY = 50          // Keep 50 samples (~500ms at 100Hz)
+    const MIN_PEAK_INTERVAL = 300   // Min ms between consecutive peaks
+    const MAGNITUDE_THRESHOLD = 0.5 // m/s² - need at least this much acceleration
+    const PEAK_PROMINENCE = 1.2     // Peak must be 1.2x higher than surrounding average
 
-    const handleMotion = (accY: number) => {
-      const now = Date.now()
-      const sens = 9.8 * sensitivity // scale to g
-
-      // Initialize baseline
-      if (baselineRef.current === null) baselineRef.current = accY
-
-      // High-pass filter: remove baseline drift
-      const filtered = accY - baselineRef.current
-
-      // Very simple state machine: detect a downward movement then upward
-      // Down detected when filtered < -sensitivity*0.6
-      // Up detected when filtered > sensitivity*0.6
-
-      const downThreshold = -0.6 * sensitivity
-      const upThreshold = 0.6 * sensitivity
-
-      if (filtered < downThreshold && lastStateRef.current !== 'down') {
-        lastStateRef.current = 'down'
-        lastPeakRef.current = now
-      }
-
-      if (
-        filtered > upThreshold &&
-        lastStateRef.current === 'down' &&
-        now - lastPeakRef.current > 200
-      ) {
-        // Completed a down->up cycle
-        if (now - lastCountTimeRef.current > minInterval) {
-          setCount((c) => c + 1)
-          lastCountTimeRef.current = now
-        }
-        lastStateRef.current = 'up'
-      }
-
-      // Slowly update baseline (low-pass)
-      baselineRef.current = baselineRef.current! * 0.98 + accY * 0.02
+    // Low-pass filter to smooth noise
+    const lowPassFilter = (raw: number, lastFiltered: number, alpha: number = 0.3): number => {
+      return lastFiltered * (1 - alpha) + raw * alpha
     }
 
-    // Browser DeviceMotion
+    // Detect if a point is a local peak
+    const isPeak = (index: number, history: number[], prominence: number): boolean => {
+      if (index === 0 || index === history.length - 1) return false
+
+      const value = history[index]
+      const before = history[index - 1]
+      const after = history[index + 1]
+
+      // Peak should be higher than both neighbors
+      if (value <= before || value <= after) return false
+
+      // Calculate prominence (how much higher than surrounding points)
+      const windowSize = 5
+      const start = Math.max(0, index - windowSize)
+      const end = Math.min(history.length, index + windowSize + 1)
+      const window = history.slice(start, end).filter((_, i) => i !== index - start)
+      const avgNeighbors = window.reduce((a, b) => a + b, 0) / window.length
+
+      // Peak should stand out significantly
+      return value > avgNeighbors * prominence
+    }
+
+    // Detect peaks in filtered signal
+    const detectPeaks = (filtered: number[], threshold: number) => {
+      const detectedPeaks: Array<{ index: number; value: number }> = []
+
+      for (let i = 1; i < filtered.length - 1; i++) {
+        if (isPeak(i, filtered, PEAK_PROMINENCE) && Math.abs(filtered[i]) > threshold) {
+          detectedPeaks.push({ index: i, value: filtered[i] })
+        }
+      }
+
+      return detectedPeaks
+    }
+
+    // Count cycles: detect alternating peaks (down and up motion)
+    const countStep = (now: number) => {
+      // Check if enough time has passed
+      if (now - lastCountTimeRef.current < MIN_PEAK_INTERVAL) return
+
+      // Check if we have recent peaks showing up-down or down-up pattern
+      const recentPeaks = peaksRef.current.filter(p => now - p.time < 800) // Last 800ms
+
+      if (recentPeaks.length >= 2) {
+        // Check if peaks alternate in sign (one negative, one positive)
+        const values = recentPeaks.map(p => p.value)
+        const signs = values.map(v => v > 0 ? 1 : -1)
+
+        if (signs.length >= 2 && signs[signs.length - 1] !== signs[signs.length - 2]) {
+          setCount((c) => c + 1)
+          lastCountTimeRef.current = now
+          lastPeakRef.current = now
+
+          console.log(`✓ Step detected at ${now}ms | Recent peaks:`, recentPeaks.length)
+        }
+      }
+    }
+
+    const handleMotion = (accY: number, now: number) => {
+      // Initialize baseline on first measurement
+      if (baselineRef.current === null) {
+        baselineRef.current = accY
+        return
+      }
+
+      // Remove DC bias (gravity)
+      const raw = accY - baselineRef.current
+
+      // Apply low-pass filter to smooth noise
+      const lastFiltered = filteredHistoryRef.current.length > 0
+        ? filteredHistoryRef.current[filteredHistoryRef.current.length - 1]
+        : raw
+      const filtered = lowPassFilter(raw, lastFiltered, 0.3)
+
+      // Keep history buffers
+      accelHistoryRef.current.push(raw)
+      filteredHistoryRef.current.push(filtered)
+
+      if (accelHistoryRef.current.length > MAX_HISTORY) {
+        accelHistoryRef.current.shift()
+        filteredHistoryRef.current.shift()
+      }
+
+      // Detect peaks in the filtered signal
+      const newPeaks = detectPeaks(filteredHistoryRef.current, MAGNITUDE_THRESHOLD * sensitivity)
+
+      // Track new peaks
+      if (newPeaks.length > 0) {
+        const lastNewPeak = newPeaks[newPeaks.length - 1]
+        const peakValue = filteredHistoryRef.current[lastNewPeak.index]
+
+        // Check if this is a new peak (not seen before)
+        const isPeakNew = !peaksRef.current.some(p => now - p.time < 100)
+
+        if (isPeakNew) {
+          peaksRef.current.push({ time: now, value: peakValue })
+
+          // Keep only recent peaks
+          peaksRef.current = peaksRef.current.filter(p => now - p.time < 1000)
+
+          // Try to count if we have cycled
+          countStep(now)
+        }
+      }
+
+      // Update baseline slowly (adaptive to drift)
+      baselineRef.current = baselineRef.current * 0.99 + accY * 0.01
+    }
+
+    // Browser DeviceMotion handler
     const webHandler = (ev: DeviceMotionEvent) => {
       const acc = ev.acceleration || ev.accelerationIncludingGravity
       if (!acc) return
-      // Prefer Y axis (vertical) but fall back to Z
       const accY = (acc.y ?? acc.z ?? 0) as number
-      handleMotion(accY)
+      handleMotion(accY, Date.now())
     }
 
     const startWeb = () => {
       if (typeof window !== 'undefined' && 'DeviceMotionEvent' in window) {
-        // @ts-ignore
         window.addEventListener('devicemotion', webHandler)
         unsub = () => window.removeEventListener('devicemotion', webHandler)
       }
@@ -89,10 +171,9 @@ export function PushupCounter() {
       try {
         if (Motion && Motion.addListener) {
           const listener = await Motion.addListener('accel', (ev: any) => {
-            // Motion plugin returns accelerationIncludingGravity-like object
             const a = ev.acceleration || ev.accelerationIncludingGravity || ev
             const accY = (a.y ?? a.z ?? 0) as number
-            handleMotion(accY)
+            handleMotion(accY, Date.now())
           })
           unsub = async () => {
             try {
@@ -119,8 +200,6 @@ export function PushupCounter() {
           // ignore
         }
       } else {
-        // ensure removal
-        // @ts-ignore
         window.removeEventListener('devicemotion', webHandler)
       }
     }
@@ -129,14 +208,17 @@ export function PushupCounter() {
   const reset = () => {
     setCount(0)
     baselineRef.current = null
-    lastStateRef.current = 'neutral'
     lastCountTimeRef.current = 0
+    lastPeakRef.current = null
+    accelHistoryRef.current = []
+    filteredHistoryRef.current = []
+    peaksRef.current = []
   }
 
   return (
     <div className="p-4 rounded-xl border bg-card/60">
       <h3 className="text-lg font-bold mb-2">Pushup Counter</h3>
-      <p className="text-sm text-muted-foreground mb-4">Place your phone on your chest or nearby and perform pushups. Use sensitivity to tune detection.</p>
+      <p className="text-sm text-muted-foreground mb-4">🎯 Perform smooth, deliberate pushups. The counter uses peak detection to ignore phone shakes.</p>
 
       <div className="flex items-center gap-4 mb-4">
         <div className="text-6xl font-extrabold">{count}</div>
@@ -162,15 +244,22 @@ export function PushupCounter() {
           onChange={(e) => setSensitivity(parseFloat(e.target.value))}
           className="w-full"
         />
+        <p className="text-xs text-muted-foreground mt-1">Lower = stricter, Higher = more sensitive</p>
       </div>
 
-      <div className="mt-3 text-xs text-muted-foreground">
-        <p>If motion detection is unreliable, try placing your phone flat on your chest or use an external wearable. You can also tap the buttons below to simulate a rep for debugging.</p>
+      <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+        <p>✨ <strong>Improved Detection:</strong></p>
+        <ul className="list-disc list-inside space-y-1 ml-2">
+          <li>Peak detection - ignores random shakes</li>
+          <li>Signal filtering - smooths out noise</li>
+          <li>Magnitude checking - requires real motion</li>
+          <li>Cycle detection - counts full up-down patterns</li>
+        </ul>
       </div>
 
       <div className="mt-4 flex gap-2">
-        <button onClick={() => setCount((c) => c + 1)} className="px-3 py-1 rounded-md border">+1 (simulate)</button>
-        <button onClick={() => setCount((c) => Math.max(0, c - 1))} className="px-3 py-1 rounded-md border">-1</button>
+        <button onClick={() => setCount((c) => c + 1)} className="px-3 py-1 rounded-md border text-xs">+1 (test)</button>
+        <button onClick={() => setCount((c) => Math.max(0, c - 1))} className="px-3 py-1 rounded-md border text-xs">-1</button>
       </div>
     </div>
   )
