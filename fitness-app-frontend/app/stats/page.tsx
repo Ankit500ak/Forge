@@ -206,9 +206,9 @@ export default function StatsPage() {
 
           {/* ── Key metrics ── */}
           <div className="grid grid-cols-2 gap-3">
-            <StatPill label="Total Workouts" value={(userStats?.total_workouts || 0).toLocaleString()} sub={`${Math.floor((userStats?.total_workouts || 0) / 4)} per week`} accent="#a78bfa" />
-            <StatPill label="This Week" value={userStats?.weekly_workouts || 0} sub="Workouts completed" accent="#60a5fa" />
-            <StatPill label="Avg. Duration" value={`${userStats?.avg_duration || 0}m`} sub="Per workout" accent="#fb923c" />
+            <StatPill label="Total XP" value={(userStats?.total_xp || 0).toLocaleString()} sub="Experience points" accent="#a78bfa" />
+            <StatPill label="Level" value={userStats?.level || 1} sub="Current rank" accent="#60a5fa" />
+            <StatPill label="Total Workouts" value={(userStats?.total_workouts || 0).toLocaleString()} sub={`${Math.floor((userStats?.total_workouts || 0) / 4)} per week`} accent="#fb923c" />
             <div
               className="relative rounded-2xl p-5 flex flex-col gap-1 items-start overflow-hidden"
               style={{
