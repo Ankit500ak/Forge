@@ -93,10 +93,10 @@ export default function StatsPage() {
 
   // Sample category breakdown
   const categoryStats = [
-    { name: 'Cardio', value: 35, fill: '#ea580c' },
-    { name: 'Strength', value: 30, fill: '#f97316' },
-    { name: 'Flexibility', value: 20, fill: '#fb923c' },
-    { name: 'Recovery', value: 15, fill: '#fbbf24' },
+    { name: 'Cardio', value: 35, fill: '#a855f7' },
+    { name: 'Strength', value: 30, fill: '#3b82f6' },
+    { name: 'Flexibility', value: 20, fill: '#06b6d4' },
+    { name: 'Recovery', value: 15, fill: '#22c55e' },
   ]
 
   // Sample progress data
@@ -115,53 +115,53 @@ export default function StatsPage() {
 
       <main className="overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-b from-card/95 to-card/50 backdrop-blur-sm border-b-2 border-orange-600/50 p-4 z-10">
-          <h1 className="text-2xl font-bold text-orange-500">📊 Statistics</h1>
+        <div className="sticky top-0 bg-gradient-to-b from-card/95 to-card/50 backdrop-blur-sm border-b-2 border-purple-600/50 p-4 z-10">
+          <h1 className="text-2xl font-bold text-purple-400">📊 Statistics</h1>
           <p className="text-muted-foreground text-xs mt-1">Your performance metrics and progress</p>
         </div>
 
         <div className="p-4 space-y-4">
           {/* Key Metrics - Quick Stats */}
           <section className="grid grid-cols-2 gap-3">
-            <div className="bg-card border-2 border-orange-600/50 rounded-lg p-4 shadow-lg shadow-orange-600/20">
+            <div className="bg-gradient-to-br from-purple-600/20 to-purple-700/10 border-2 border-purple-500/50 rounded-lg p-4 shadow-lg shadow-purple-600/20">
               <p className="text-xs text-muted-foreground mb-1">Total XP</p>
-              <p className="text-2xl font-bold text-orange-400">{userStats?.total_xp || 0}</p>
-              <p className="text-xs text-green-400 mt-1">+{Math.floor((userStats?.total_xp || 0) / 10)} this week</p>
+              <p className="text-2xl font-bold text-purple-300">{userStats?.total_xp || 0}</p>
+              <p className="text-xs text-purple-400 mt-1">+{Math.floor((userStats?.total_xp || 0) / 10)} this week</p>
             </div>
 
-            <div className="bg-card border-2 border-orange-600/50 rounded-lg p-4 shadow-lg shadow-orange-600/20">
+            <div className="bg-gradient-to-br from-blue-600/20 to-blue-700/10 border-2 border-blue-500/50 rounded-lg p-4 shadow-lg shadow-blue-600/20">
               <p className="text-xs text-muted-foreground mb-1">Current Level</p>
-              <p className="text-2xl font-bold text-orange-400">{userStats?.level || 1}</p>
-              <p className="text-xs text-purple-400 mt-1">⭐ {userStats?.rank || 'Novice'}</p>
+              <p className="text-2xl font-bold text-blue-300">{userStats?.level || 1}</p>
+              <p className="text-xs text-blue-400 mt-1">⭐ {userStats?.rank || 'Novice'}</p>
             </div>
 
-            <div className="bg-card border-2 border-orange-600/50 rounded-lg p-4 shadow-lg shadow-orange-600/20">
+            <div className="bg-gradient-to-br from-cyan-600/20 to-cyan-700/10 border-2 border-cyan-500/50 rounded-lg p-4 shadow-lg shadow-cyan-600/20">
               <p className="text-xs text-muted-foreground mb-1">Tasks Completed</p>
-              <p className="text-2xl font-bold text-orange-400">{completedCount}/{totalTasks}</p>
-              <p className="text-xs text-blue-400 mt-1">{completionPercentage}% today</p>
+              <p className="text-2xl font-bold text-cyan-300">{completedCount}/{totalTasks}</p>
+              <p className="text-xs text-cyan-400 mt-1">{completionPercentage}% today</p>
             </div>
 
-            <div className="bg-card border-2 border-orange-600/50 rounded-lg p-4 shadow-lg shadow-orange-600/20">
+            <div className="bg-gradient-to-br from-green-600/20 to-green-700/10 border-2 border-green-500/50 rounded-lg p-4 shadow-lg shadow-green-600/20">
               <p className="text-xs text-muted-foreground mb-1">Streak</p>
-              <p className="text-2xl font-bold text-orange-400">7 days</p>
-              <p className="text-xs text-yellow-400 mt-1">🔥 On fire!</p>
+              <p className="text-2xl font-bold text-green-300">7 days</p>
+              <p className="text-xs text-green-400 mt-1">🔥 On fire!</p>
             </div>
           </section>
 
           {/* Current Attributes Radar */}
-          <section className="bg-card border-2 border-orange-600/50 rounded-lg p-4 shadow-lg shadow-orange-600/20">
-            <h2 className="text-base font-bold text-orange-400 mb-3">Character Attributes</h2>
+          <section className="bg-gradient-to-br from-card/80 to-card/40 border-2 border-purple-600/50 rounded-lg p-4 shadow-lg shadow-purple-600/20">
+            <h2 className="text-base font-bold text-purple-300 mb-3">Character Attributes</h2>
             {radarData.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
                 <RadarChart data={radarData}>
                   <PolarGrid stroke="#3a3a3a" />
                   <PolarAngleAxis dataKey="name" stroke="#aaa" />
                   <PolarRadiusAxis stroke="#666" domain={[0, 100]} />
-                  <Radar name="Stats" dataKey="value" stroke="#ea580c" fill="#ea580c" fillOpacity={0.6} />
+                  <Radar name="Stats" dataKey="value" stroke="#a855f7" fill="#a855f7" fillOpacity={0.6} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#1a1a1a',
-                      border: '2px solid #ea580c',
+                      border: '2px solid #a855f7',
                       borderRadius: '8px',
                     }}
                   />
@@ -173,8 +173,8 @@ export default function StatsPage() {
           </section>
 
           {/* Weekly Progress Chart */}
-          <section className="bg-card border-2 border-orange-600/50 rounded-lg p-4 shadow-lg shadow-orange-600/20">
-            <h2 className="text-base font-bold text-orange-400 mb-3">Weekly Progress</h2>
+          <section className="bg-gradient-to-br from-card/80 to-card/40 border-2 border-blue-600/50 rounded-lg p-4 shadow-lg shadow-blue-600/20">
+            <h2 className="text-base font-bold text-blue-300 mb-3">Weekly Progress</h2>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={progressData}>
                 <CartesianGrid stroke="#3a3a3a" />
@@ -183,20 +183,20 @@ export default function StatsPage() {
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#1a1a1a',
-                    border: '2px solid #ea580c',
+                    border: '2px solid #3b82f6',
                     borderRadius: '8px',
                   }}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="xp" stroke="#ea580c" name="XP Earned" dot={{ r: 4 }} strokeWidth={2} />
-                <Line type="monotone" dataKey="completed" stroke="#f97316" name="Tasks Done" dot={{ r: 4 }} strokeWidth={2} />
+                <Line type="monotone" dataKey="xp" stroke="#3b82f6" name="XP Earned" dot={{ r: 4 }} strokeWidth={2} />
+                <Line type="monotone" dataKey="completed" stroke="#06b6d4" name="Tasks Done" dot={{ r: 4 }} strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </section>
 
           {/* Category Breakdown */}
-          <section className="bg-card border-2 border-orange-600/50 rounded-lg p-4 shadow-lg shadow-orange-600/20">
-            <h2 className="text-base font-bold text-orange-400 mb-3">Activity Breakdown</h2>
+          <section className="bg-gradient-to-br from-card/80 to-card/40 border-2 border-cyan-600/50 rounded-lg p-4 shadow-lg shadow-cyan-600/20">
+            <h2 className="text-base font-bold text-cyan-300 mb-3">Activity Breakdown</h2>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
@@ -216,7 +216,7 @@ export default function StatsPage() {
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#1a1a1a',
-                    border: '2px solid #ea580c',
+                    border: '2px solid #06b6d4',
                     borderRadius: '8px',
                   }}
                 />
@@ -226,74 +226,74 @@ export default function StatsPage() {
 
           {/* Detailed Stats Grid */}
           <section className="grid md:grid-cols-2 gap-3">
-            <div className="bg-card border-2 border-orange-600/50 rounded-lg p-4 shadow-lg shadow-orange-600/20">
-              <h3 className="text-base font-bold text-orange-400 mb-3">Physical Stats</h3>
+            <div className="bg-gradient-to-br from-card/80 to-card/40 border-2 border-green-600/50 rounded-lg p-4 shadow-lg shadow-green-600/20">
+              <h3 className="text-base font-bold text-green-300 mb-3">Physical Stats</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Strength</span>
-                  <span className="text-orange-400 font-bold">{gameStats?.strength || 0}</span>
+                  <span className="text-green-300 font-bold">{gameStats?.strength || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Speed</span>
-                  <span className="text-orange-400 font-bold">{gameStats?.speed || 0}</span>
+                  <span className="text-green-300 font-bold">{gameStats?.speed || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Endurance</span>
-                  <span className="text-orange-400 font-bold">{gameStats?.endurance || 0}</span>
+                  <span className="text-green-300 font-bold">{gameStats?.endurance || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Agility</span>
-                  <span className="text-orange-400 font-bold">{gameStats?.agility || 0}</span>
+                  <span className="text-green-300 font-bold">{gameStats?.agility || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Recovery</span>
-                  <span className="text-orange-400 font-bold">{gameStats?.recovery || 0}</span>
+                  <span className="text-green-300 font-bold">{gameStats?.recovery || 0}</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-card border-2 border-orange-600/50 rounded-lg p-4 shadow-lg shadow-orange-600/20">
-              <h3 className="text-base font-bold text-orange-400 mb-3">User Profile</h3>
+            <div className="bg-gradient-to-br from-card/80 to-card/40 border-2 border-yellow-600/50 rounded-lg p-4 shadow-lg shadow-yellow-600/20">
+              <h3 className="text-base font-bold text-yellow-300 mb-3">User Profile</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Name</span>
-                  <span className="text-blue-400 font-bold">{userStats?.name || 'Warrior'}</span>
+                  <span className="text-yellow-300 font-bold">{userStats?.name || 'Warrior'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Email</span>
-                  <span className="text-blue-400 font-bold text-xs">{userStats?.email || 'N/A'}</span>
+                  <span className="text-yellow-300 font-bold text-xs">{userStats?.email || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Fitness Level</span>
-                  <span className="text-purple-400 font-bold capitalize">{userStats?.fitness_level || 'Beginner'}</span>
+                  <span className="text-yellow-300 font-bold capitalize">{userStats?.fitness_level || 'Beginner'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Age</span>
-                  <span className="text-green-400 font-bold">{userStats?.age || '—'}</span>
+                  <span className="text-yellow-300 font-bold">{userStats?.age || '—'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Member Since</span>
-                  <span className="text-yellow-400 font-bold text-xs">Mar 2026</span>
+                  <span className="text-yellow-300 font-bold text-xs">Mar 2026</span>
                 </div>
               </div>
             </div>
           </section>
 
           {/* Achievement Section */}
-          <section className="bg-card border-2 border-orange-600/50 rounded-lg p-4 shadow-lg shadow-orange-600/20">
-            <h3 className="text-base font-bold text-orange-400 mb-3">🏆 Achievements</h3>
+          <section className="bg-gradient-to-br from-card/80 to-card/40 border-2 border-orange-600/50 rounded-lg p-4 shadow-lg shadow-orange-600/20">
+            <h3 className="text-base font-bold text-orange-300 mb-3">🏆 Achievements</h3>
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-background/50 rounded p-3 text-center">
+              <div className="bg-background/50 rounded p-3 text-center border border-orange-500/30">
                 <p className="text-xl mb-1">🥇</p>
                 <p className="text-xs font-bold">First Steps</p>
                 <p className="text-xs text-muted-foreground">1 task done</p>
               </div>
-              <div className="bg-background/50 rounded p-3 text-center">
+              <div className="bg-background/50 rounded p-3 text-center border border-orange-500/30">
                 <p className="text-xl mb-1">🔥</p>
                 <p className="text-xs font-bold">On Fire</p>
                 <p className="text-xs text-muted-foreground">7-day streak</p>
               </div>
-              <div className="bg-background/50 rounded p-3 text-center opacity-50">
+              <div className="bg-background/50 rounded p-3 text-center opacity-50 border border-orange-500/30">
                 <p className="text-xl mb-1">⭐</p>
                 <p className="text-xs font-bold">100 XP</p>
                 <p className="text-xs text-muted-foreground">Locked</p>
