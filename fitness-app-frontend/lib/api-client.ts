@@ -5,7 +5,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API
 
 const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 10000, // Add timeout
+  timeout: 60000, // Increased to 60s to handle slow backend responses
   headers: {
     'Content-Type': 'application/json',
   },
