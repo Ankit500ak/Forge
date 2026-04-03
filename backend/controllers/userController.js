@@ -1,9 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Initialize Supabase client (optional - only if credentials provided)
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
 
 /**
  * Get user profile with stats
@@ -14,9 +18,9 @@ export const getUserProfile = async (req, res) => {
     const userId = req.userId;
 
     if (!userId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'User not authenticated',
-        error: 'Unauthenticated' 
+        error: 'Unauthenticated'
       });
     }
 
@@ -31,15 +35,15 @@ export const getUserProfile = async (req, res) => {
 
     if (userError) {
       console.error('[Users] Error fetching user:', userError);
-      return res.status(500).json({ 
-        message: 'Failed to fetch user data', 
-        error: userError.message 
+      return res.status(500).json({
+        message: 'Failed to fetch user data',
+        error: userError.message
       });
     }
 
     if (!user) {
       console.error('[Users] ❌ User not found:', userId);
-      return res.status(404).json({ 
+      return res.status(404).json({
         message: 'User not found. Please complete registration.',
         error: 'UserNotFound',
         requiresRegistration: true
@@ -94,9 +98,9 @@ export const getUserProfile = async (req, res) => {
   } catch (error) {
     console.error('[Users] Error fetching profile:', error.message);
     console.error('[Users] Stack trace:', error.stack);
-    res.status(500).json({ 
-      message: 'Failed to fetch profile', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Failed to fetch profile',
+      error: error.message
     });
   }
 };
@@ -110,9 +114,9 @@ export const getUserStats = async (req, res) => {
     const userId = req.userId;
 
     if (!userId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'User not authenticated',
-        error: 'Unauthenticated' 
+        error: 'Unauthenticated'
       });
     }
 
@@ -126,15 +130,15 @@ export const getUserStats = async (req, res) => {
 
     if (error && error.code !== 'PGRST116' && error.code !== '42501') {
       console.error('[Users] Error fetching stats:', error);
-      return res.status(500).json({ 
-        message: 'Failed to fetch stats', 
-        error: error.message 
+      return res.status(500).json({
+        message: 'Failed to fetch stats',
+        error: error.message
       });
     }
 
     if (!stats) {
       console.log(`[Users] ⚠️ Stats not found for user: ${userId} - returning defaults`);
-      
+
       // Return default stats instead of 404
       return res.json({
         message: 'User stats retrieved (defaults)',
@@ -194,9 +198,9 @@ export const getUserStats = async (req, res) => {
   } catch (error) {
     console.error('[Users] Error fetching stats:', error.message);
     console.error('[Users] Stack trace:', error.stack);
-    res.status(500).json({ 
-      message: 'Failed to fetch stats', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Failed to fetch stats',
+      error: error.message
     });
   }
 };
@@ -210,9 +214,9 @@ export const updateUserStats = async (req, res) => {
     const statsUpdate = req.body;
 
     if (!userId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'User not authenticated',
-        error: 'Unauthenticated' 
+        error: 'Unauthenticated'
       });
     }
 
@@ -237,9 +241,9 @@ export const updateUserStats = async (req, res) => {
     }
 
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'No valid stats to update',
-        error: 'NoValidFields' 
+        error: 'NoValidFields'
       });
     }
 
@@ -254,9 +258,9 @@ export const updateUserStats = async (req, res) => {
 
     if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42501') {
       console.error('[Users] Error checking stats:', checkError);
-      return res.status(500).json({ 
-        message: 'Failed to check user stats', 
-        error: checkError.message 
+      return res.status(500).json({
+        message: 'Failed to check user stats',
+        error: checkError.message
       });
     }
 
@@ -275,19 +279,19 @@ export const updateUserStats = async (req, res) => {
 
       if (error) {
         console.error('[Users] Error creating stats:', error);
-        
+
         // Handle permission errors gracefully
         if (error.code === '42501') {
-          return res.status(403).json({ 
+          return res.status(403).json({
             message: 'Permission denied. Please contact support.',
             error: 'PermissionDenied',
             requiresSupport: true
           });
         }
-        
-        return res.status(500).json({ 
-          message: 'Failed to create user stats', 
-          error: error.message 
+
+        return res.status(500).json({
+          message: 'Failed to create user stats',
+          error: error.message
         });
       }
       result = data;
@@ -302,19 +306,19 @@ export const updateUserStats = async (req, res) => {
 
       if (error) {
         console.error('[Users] Error updating stats:', error);
-        
+
         // Handle permission errors gracefully
         if (error.code === '42501') {
-          return res.status(403).json({ 
+          return res.status(403).json({
             message: 'Permission denied. Please contact support.',
             error: 'PermissionDenied',
             requiresSupport: true
           });
         }
-        
-        return res.status(500).json({ 
-          message: 'Failed to update user stats', 
-          error: error.message 
+
+        return res.status(500).json({
+          message: 'Failed to update user stats',
+          error: error.message
         });
       }
       result = data;
@@ -329,9 +333,9 @@ export const updateUserStats = async (req, res) => {
   } catch (error) {
     console.error('[Users] Error updating stats:', error.message);
     console.error('[Users] Stack trace:', error.stack);
-    res.status(500).json({ 
-      message: 'Failed to update stats', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Failed to update stats',
+      error: error.message
     });
   }
 };
@@ -344,9 +348,9 @@ export const initializeUserStats = async (req, res) => {
     const userId = req.userId;
 
     if (!userId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'User not authenticated',
-        error: 'Unauthenticated' 
+        error: 'Unauthenticated'
       });
     }
 
@@ -361,15 +365,15 @@ export const initializeUserStats = async (req, res) => {
 
     if (checkError && checkError.code !== 'PGRST116' && checkError.code !== '42501') {
       console.error('[Users] Error checking stats:', checkError);
-      return res.status(500).json({ 
-        message: 'Failed to check user stats', 
-        error: checkError.message 
+      return res.status(500).json({
+        message: 'Failed to check user stats',
+        error: checkError.message
       });
     }
 
     if (existingStats) {
       console.log(`[Users] Stats already exist for user: ${userId}`);
-      
+
       // Return existing stats
       const { data: stats, error: fetchError } = await supabase
         .from('user_stats')
@@ -379,9 +383,9 @@ export const initializeUserStats = async (req, res) => {
 
       if (fetchError) {
         console.error('[Users] Error fetching existing stats:', fetchError);
-        return res.status(500).json({ 
-          message: 'Failed to fetch stats', 
-          error: fetchError.message 
+        return res.status(500).json({
+          message: 'Failed to fetch stats',
+          error: fetchError.message
         });
       }
 
@@ -424,19 +428,19 @@ export const initializeUserStats = async (req, res) => {
 
     if (createError) {
       console.error('[Users] Error creating stats:', createError);
-      
+
       // Handle permission errors gracefully
       if (createError.code === '42501') {
-        return res.status(403).json({ 
+        return res.status(403).json({
           message: 'Permission denied. Your profile is incomplete. Please complete registration.',
           error: 'PermissionDenied',
           requiresRegistration: true
         });
       }
-      
-      return res.status(500).json({ 
-        message: 'Failed to create user stats', 
-        error: createError.message 
+
+      return res.status(500).json({
+        message: 'Failed to create user stats',
+        error: createError.message
       });
     }
 
@@ -450,9 +454,9 @@ export const initializeUserStats = async (req, res) => {
   } catch (error) {
     console.error('[Users] Error initializing stats:', error.message);
     console.error('[Users] Stack trace:', error.stack);
-    res.status(500).json({ 
-      message: 'Failed to initialize stats', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Failed to initialize stats',
+      error: error.message
     });
   }
 };
@@ -466,9 +470,9 @@ export const getUserGameData = async (req, res) => {
     const userId = req.userId;
 
     if (!userId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: 'User not authenticated',
-        error: 'Unauthenticated' 
+        error: 'Unauthenticated'
       });
     }
 
@@ -481,13 +485,13 @@ export const getUserGameData = async (req, res) => {
         .select('id, email, name, level, total_xp')
         .eq('id', userId)
         .maybeSingle(),
-      
+
       supabase
         .from('user_stats')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle(),
-      
+
       supabase
         .from('user_progression')
         .select('*')
@@ -498,15 +502,15 @@ export const getUserGameData = async (req, res) => {
     // Check for user
     if (userResult.error) {
       console.error('[Users] Error fetching user:', userResult.error);
-      return res.status(500).json({ 
-        message: 'Failed to fetch user data', 
-        error: userResult.error.message 
+      return res.status(500).json({
+        message: 'Failed to fetch user data',
+        error: userResult.error.message
       });
     }
 
     if (!userResult.data) {
       console.error('[Users] ❌ User not found:', userId);
-      return res.status(404).json({ 
+      return res.status(404).json({
         message: 'User not found. Please complete registration.',
         error: 'UserNotFound',
         requiresRegistration: true
@@ -568,9 +572,9 @@ export const getUserGameData = async (req, res) => {
   } catch (error) {
     console.error('[Users] Error fetching game data:', error.message);
     console.error('[Users] Stack trace:', error.stack);
-    res.status(500).json({ 
-      message: 'Failed to fetch game data', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Failed to fetch game data',
+      error: error.message
     });
   }
 };

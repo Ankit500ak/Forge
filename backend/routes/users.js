@@ -6,10 +6,15 @@ import { checkRankUp, getNextRankInfo } from '../utils/rankMonitor.js';
 import { authenticate, ensureUserRecords } from '../middleware/auth.js';
 
 const router = express.Router();
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+
+// Initialize Supabase client (optional - only if credentials provided)
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
 
 // Protected route - Get current user
 router.get('/me', authenticate, ensureUserRecords, async (req, res) => {
@@ -121,17 +126,17 @@ router.get('/me/game', authenticate, ensureUserRecords, async (req, res) => {
       console.error('  Code:', progError.code);
       console.error('  Details:', progError.details);
       console.error('  Hint:', progError.hint);
-      
+
       // If it's RLS error (code 42501), provide helpful message
       if (progError.code === '42501') {
-        return res.status(500).json({ 
+        return res.status(500).json({
           message: 'Database access denied (RLS enabled)',
           error: 'RLS_PERMISSION_DENIED',
           details: 'RLS is blocking access. It needs to be disabled in Supabase dashboard.',
           table: 'user_progression'
         });
       }
-      
+
       return res.status(500).json({ message: 'Server error', error: progError.message });
     }
 
@@ -165,9 +170,9 @@ router.get('/me/game', authenticate, ensureUserRecords, async (req, res) => {
       console.error('[Users] ❌ Error fetching stats:');
       console.error('  Message:', statsError.message);
       console.error('  Code:', statsError.code);
-      
+
       if (statsError.code === '42501') {
-        return res.status(500).json({ 
+        return res.status(500).json({
           message: 'Database access denied (RLS enabled)',
           error: 'RLS_PERMISSION_DENIED',
           details: 'RLS is blocking access. It needs to be disabled in Supabase dashboard.',
@@ -514,10 +519,10 @@ router.get('/me/global-rank', authenticate, async (req, res) => {
 
     if (error) {
       console.error('[Global Rank] Database error:', error.message, error.code);
-      return res.status(500).json({ 
-        message: 'Failed to fetch rankings', 
+      return res.status(500).json({
+        message: 'Failed to fetch rankings',
         error: error.message,
-        code: error.code 
+        code: error.code
       });
     }
 
@@ -557,9 +562,9 @@ router.get('/me/global-rank', authenticate, async (req, res) => {
     });
   } catch (err) {
     console.error('[Global Rank] Critical error:', err.message, err.stack);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error',
-      error: err.message 
+      error: err.message
     });
   }
 });
@@ -575,10 +580,10 @@ router.get('/leaderboard', authenticate, async (req, res) => {
 
     if (error) {
       console.error('[Leaderboard] Database error:', error.message, error.code);
-      return res.status(500).json({ 
-        message: 'Failed to fetch leaderboard', 
+      return res.status(500).json({
+        message: 'Failed to fetch leaderboard',
         error: error.message,
-        code: error.code 
+        code: error.code
       });
     }
 
@@ -605,9 +610,9 @@ router.get('/leaderboard', authenticate, async (req, res) => {
     });
   } catch (err) {
     console.error('[Leaderboard] Critical error:', err.message, err.stack);
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: err.message 
+    res.status(500).json({
+      message: 'Server error',
+      error: err.message
     });
   }
 });

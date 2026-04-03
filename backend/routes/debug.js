@@ -3,10 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Initialize Supabase client (optional - only if credentials provided)
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
 
 /**
  * Debug endpoint - Check RLS status and table access
@@ -14,7 +18,7 @@ const supabase = createClient(
  */
 router.get('/rls-status', async (req, res) => {
   console.log('[Debug] Checking RLS status...');
-  
+
   const tables = ['user_progression', 'user_stats', 'fitness_profiles', 'tasks'];
   const results = {
     timestamp: new Date().toISOString(),
@@ -24,7 +28,7 @@ router.get('/rls-status', async (req, res) => {
 
   for (const table of tables) {
     console.log(`[Debug] Checking ${table}...`);
-    
+
     try {
       // Try to select from table with service role
       const { data, error } = await supabase
@@ -34,7 +38,7 @@ router.get('/rls-status', async (req, res) => {
 
       if (error) {
         console.error(`[Debug] Error on ${table}:`, error.code, error.message);
-        
+
         results.tables[table] = {
           status: 'ERROR',
           code: error.code,
@@ -42,7 +46,7 @@ router.get('/rls-status', async (req, res) => {
           fullError: JSON.stringify(error),
           rls_enabled: error.code === '42501' ? 'YES - RLS IS BLOCKING ACCESS' : 'UNKNOWN'
         };
-        
+
         if (error.code === '42501') {
           results.errors.push({
             table,
@@ -110,14 +114,14 @@ router.get('/test-table', async (req, res) => {
 
     if (error) {
       console.error(`[Debug] Error accessing ${table}:`, error);
-      
+
       return res.status(500).json({
         table,
         status: 'ERROR',
         error_code: error.code,
         error_message: error.message,
         rls_blocking: error.code === '42501',
-        solution: error.code === '42501' 
+        solution: error.code === '42501'
           ? `Run in Supabase SQL Editor: ALTER TABLE public.${table} DISABLE ROW LEVEL SECURITY;`
           : error.message
       });
@@ -161,14 +165,14 @@ router.get('/test-task-count', async (req, res) => {
 
     if (error) {
       console.error(`[Debug] Error counting tasks:`, error);
-      
+
       return res.status(500).json({
         status: 'ERROR',
         userId,
         error_code: error.code,
         error_message: error.message,
         rls_blocking: error.code === '42501',
-        solution: error.code === '42501' 
+        solution: error.code === '42501'
           ? 'Run in Supabase SQL Editor: ALTER TABLE public.tasks DISABLE ROW LEVEL SECURITY;'
           : error.message
       });

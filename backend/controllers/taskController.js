@@ -7,10 +7,14 @@ import { checkLevelUp, getLevelFromXp } from '../utils/level.js';
 import { generateAndStoreTask, getRecentTasks } from '../mlTaskGenerator.js';
 import { generateSimpleTasks, generateSimpleTaskForUser } from '../simpleTaskGenerator.js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Initialize Supabase client (optional - only if credentials provided)
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
 
 // Generate task using ML model
 export const generateMLTaskForUser = async (req, res) => {
@@ -230,8 +234,8 @@ export const getTodayTasks = async (req, res) => {
       }
     }
 
-    // Now fetch today's tasks with full details (including newly generated ones)
-    console.log(`[getTodayTasks] Fetching today's tasks with full details...`);
+    // Now fetch today's tasks with full details (including newly generated ones) - LIMITED TO 5
+    console.log(`[getTodayTasks] Fetching today's tasks with full details (max 5)...`);
 
     const { data: tasks, error: tasksError } = await supabase
       .from('tasks')
@@ -251,7 +255,8 @@ export const getTodayTasks = async (req, res) => {
       .eq('user_id', userId)
       .eq('scheduled_date', today)
       .order('completed', { ascending: true })
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(5);  // Limit to 5 tasks
 
     if (tasksError) {
       console.error('[getTodayTasks] Error fetching tasks:', tasksError);
@@ -310,7 +315,8 @@ export const getUserTasks = async (req, res) => {
 
     const { data: tasks, error } = await query
       .order('scheduled_date', { ascending: false })
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(5);  // Limit to 5 tasks
 
     if (error) {
       console.error('[Tasks] Error fetching user tasks:', error);

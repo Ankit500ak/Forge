@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useCamera } from '@/hooks/useCamera';
+import Navigation from '@/components/navigation';
 
 export function CameraFoodDetection() {
     const {
@@ -870,6 +871,9 @@ export function CameraFoodDetection() {
                     </div>
                 </div>
             )}
+
+            {/* NAVIGATION BAR */}
+            <Navigation />
         </div>
     );
 }

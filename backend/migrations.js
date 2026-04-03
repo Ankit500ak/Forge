@@ -35,7 +35,9 @@ export async function runMigrations(useExistingPool = null) {
         if (!pool) {
             pool = new Pool({
                 connectionString: postgresUrl,
-                ssl: { rejectUnauthorized: false } // Needed for Supabase
+                ssl: { rejectUnauthorized: false }, // Needed for Supabase
+                connectionTimeoutMillis: 30000,  // 30 second timeout
+                idleTimeoutMillis: 30000
             });
             shouldClosPool = true;
         }

@@ -1,11 +1,14 @@
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Initialize Supabase client (optional - only if credentials provided)
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
 
 /**
  * Authentication middleware
@@ -15,14 +18,14 @@ export const authenticate = async (req, res, next) => {
   try {
     // Extract token from Authorization header
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader) {
       console.log('[Auth] No authorization header provided');
       return res.status(401).json({ message: 'No token provided' });
     }
 
     const token = authHeader.split(' ')[1];
-    
+
     if (!token) {
       console.log('[Auth] Token missing from authorization header');
       return res.status(401).json({ message: 'No token provided' });
@@ -34,32 +37,32 @@ export const authenticate = async (req, res, next) => {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (verifyErr) {
       console.error('[Auth] Token verification failed:', verifyErr.message);
-      
+
       // Provide specific error messages for different JWT errors
       if (verifyErr.name === 'TokenExpiredError') {
-        return res.status(401).json({ 
-          message: 'Token expired', 
+        return res.status(401).json({
+          message: 'Token expired',
           error: 'TokenExpiredError',
-          expiredAt: verifyErr.expiredAt 
+          expiredAt: verifyErr.expiredAt
         });
       } else if (verifyErr.name === 'JsonWebTokenError') {
-        return res.status(401).json({ 
-          message: 'Invalid token', 
-          error: 'JsonWebTokenError' 
+        return res.status(401).json({
+          message: 'Invalid token',
+          error: 'JsonWebTokenError'
         });
       } else if (verifyErr.name === 'NotBeforeError') {
-        return res.status(401).json({ 
-          message: 'Token not active', 
-          error: 'NotBeforeError' 
+        return res.status(401).json({
+          message: 'Token not active',
+          error: 'NotBeforeError'
         });
       }
-      
-      return res.status(401).json({ 
-        message: 'Invalid token', 
-        error: verifyErr.message 
+
+      return res.status(401).json({
+        message: 'Invalid token',
+        error: verifyErr.message
       });
     }
-    
+
     const userId = decoded.userId;
 
     if (!userId) {
@@ -82,7 +85,7 @@ export const authenticate = async (req, res, next) => {
         console.warn('[Auth] Allowing authentication despite DB error');
       } else if (!user) {
         console.error('[Auth] User not found in database:', userId);
-        return res.status(401).json({ 
+        return res.status(401).json({
           message: 'Profile not found',
           error: 'UserNotFound'
         });
@@ -98,14 +101,14 @@ export const authenticate = async (req, res, next) => {
     // Attach userId to request object for downstream use
     req.userId = userId;
     req.user = { id: userId };
-    
+
     next();
   } catch (error) {
     console.error('[Auth] Unexpected authentication error:', error.message);
     console.error('[Auth] Stack trace:', error.stack);
-    res.status(500).json({ 
-      message: 'Authentication error', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Authentication error',
+      error: error.message
     });
   }
 };
@@ -118,7 +121,7 @@ export const authenticate = async (req, res, next) => {
 export const optionalAuthenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader) {
       // No token provided, continue without authentication
       req.userId = null;
@@ -127,7 +130,7 @@ export const optionalAuthenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    
+
     if (!token) {
       req.userId = null;
       req.user = null;
@@ -184,7 +187,7 @@ export const generateToken = (userId, options = {}) => {
   }
 
   const expiresIn = options.expiresIn || process.env.JWT_EXPIRE || '7d';
-  
+
   const payload = {
     userId,
     iat: Math.floor(Date.now() / 1000), // Issued at
@@ -287,7 +290,7 @@ export const refreshToken = async (oldToken) => {
     // Generate new token
     const newToken = generateToken(userId);
     console.log(`[Auth] ✅ Token refreshed for user: ${userId}`);
-    
+
     return newToken;
   } catch (error) {
     console.error('[Auth] Error refreshing token:', error.message);
@@ -324,17 +327,17 @@ export const authenticateAdmin = async (req, res, next) => {
 
     if (error) {
       console.error('[Auth] Error checking admin status:', error);
-      return res.status(500).json({ 
-        message: 'Failed to verify admin status', 
-        error: error.message 
+      return res.status(500).json({
+        message: 'Failed to verify admin status',
+        error: error.message
       });
     }
 
     if (!user || user.role !== 'admin') {
       console.log(`[Auth] ⛔ Admin access denied for user: ${userId}`);
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Admin access required',
-        error: 'Forbidden' 
+        error: 'Forbidden'
       });
     }
 
@@ -342,9 +345,9 @@ export const authenticateAdmin = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('[Auth] Error in admin authentication:', error.message);
-    res.status(500).json({ 
-      message: 'Authentication error', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Authentication error',
+      error: error.message
     });
   }
 };
@@ -380,7 +383,7 @@ export const validateAuthConfig = () => {
 export const ensureUserRecords = async (req, res, next) => {
   try {
     const userId = req.userId;
-    
+
     if (!userId) {
       console.log('[EnsureRecords] No user ID, skipping');
       return next();
@@ -418,7 +421,7 @@ export const ensureUserRecords = async (req, res, next) => {
           updated_at: new Date().toISOString()
         })
         .select();
-      
+
       if (createProgError) {
         // Handle duplicate key error gracefully (concurrent requests)
         if (createProgError.code === '23505') {
@@ -468,7 +471,7 @@ export const ensureUserRecords = async (req, res, next) => {
           updated_at: new Date().toISOString()
         })
         .select();
-      
+
       if (createStatsError) {
         // Handle duplicate key error gracefully (concurrent requests)
         if (createStatsError.code === '23505') {
@@ -511,7 +514,7 @@ export const ensureUserRecords = async (req, res, next) => {
           updated_at: new Date().toISOString()
         })
         .select();
-      
+
       if (createFitnessError) {
         // Handle duplicate key error gracefully (concurrent requests)
         if (createFitnessError.code === '23505') {

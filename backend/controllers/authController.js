@@ -1,16 +1,29 @@
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client (optional - only if credentials provided)
+// Initialize Supabase client lazily when first needed
 let supabase = null;
-if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
-} else {
-  console.warn('⚠️  Supabase credentials not configured - auth using Supabase will be disabled');
-}
+let supabaseInitialized = false;
+
+const initSupabaseClient = () => {
+  if (supabaseInitialized) {
+    return supabase;
+  }
+
+  supabaseInitialized = true;
+
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    console.log('✅ Supabase client initialized');
+    return supabase;
+  } else {
+    console.warn('⚠️  Supabase credentials not configured - auth using Supabase will be disabled');
+    return null;
+  }
+};
 
 // ============================================================================
 // MIDDLEWARE FUNCTIONS
@@ -732,9 +745,18 @@ export const login = async (req, res) => {
   }
 
   try {
+    // Initialize Supabase client
+    const supabaseClient = initSupabaseClient();
+    if (!supabaseClient) {
+      return res.status(500).json({
+        message: 'Supabase is not configured',
+        error: 'SupabaseNotConfigured'
+      });
+    }
+
     // Attempt Supabase authentication
     console.log('[Login] Authenticating with Supabase...');
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
       password
     });
@@ -777,12 +799,7 @@ export const login = async (req, res) => {
     console.log('[Login] Fetching user profile by auth ID:', data.user.id);
 
     // Use service role client for direct access (bypasses RLS)
-    const supabaseAdmin = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-
-    let { data: userProfile, error: profileError } = await supabaseAdmin
+    let { data: userProfile, error: profileError } = await supabaseClient
       .from('users')
       .select('id, email, name, age, gender, fitness_level, role, is_active, level, total_xp')
       .eq('id', data.user.id)
@@ -793,7 +810,7 @@ export const login = async (req, res) => {
     // Fallback: if user not found by ID, try by email
     if (!userProfile && data.user.email) {
       console.log('[Login] ⚠️ User not found by ID, trying by email:', data.user.email);
-      const { data: emailProfile, error: emailError } = await supabaseAdmin
+      const { data: emailProfile, error: emailError } = await supabaseClient
         .from('users')
         .select('id, email, name, age, gender, fitness_level, role, is_active, level, total_xp')
         .eq('email', data.user.email.toLowerCase())

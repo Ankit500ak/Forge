@@ -1,6 +1,6 @@
+import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import ranksRoutes from './routes/ranks.js';
@@ -13,6 +13,7 @@ import { initializeTaskScheduler } from './services/taskScheduler.js';
 import { runMigrations } from './migrations.js';
 import { Pool } from 'pg';
 
+// Load environment variables
 dotenv.config();
 
 console.log('═════════════════════════════════════════════════════════════════════════════');
@@ -27,13 +28,14 @@ const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 30000,  // Increased from 5s to 30s
 });
 
 // Test connection with retry logic
 const testDatabaseConnection = async (retries = 3) => {
   for (let i = 0; i < retries; i++) {
     try {
+      console.log(`🔄 Connection attempt ${i + 1}/${retries}...`);
       const result = await pool.query('SELECT NOW()');
       console.log('✅ Connected to PostgreSQL database!');
       console.log('✅ Database time:', result.rows[0].now);

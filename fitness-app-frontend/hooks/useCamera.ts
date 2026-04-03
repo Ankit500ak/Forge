@@ -312,16 +312,25 @@ export function useCamera(): CameraHookReturn {
 
                 // Map detect-and-log response to CaptureResult format
                 const result: CaptureResult = {
-                    detected_food: data.detection?.detected_food || 'Unknown',
-                    confidence: data.detection?.confidence || 0,
-                    nutrition: data.detection?.nutrition || {
-                        calories: 0,
-                        protein: 0,
-                        carbs: 0,
-                        fats: 0,
-                        fiber: 0
+                    status: 'success',
+                    capture: {
+                        id: data.capture?.id || `capture-${Date.now()}`,
+                        timestamp: data.capture?.timestamp || new Date().toISOString(),
+                        filesize: data.capture?.filesize || 0,
+                        dimensions: data.capture?.dimensions || { width: 0, height: 0 }
                     },
-                    source: data.detection?.source || 'ai'
+                    detection: {
+                        status: 'detected',
+                        detected_food: data.detection?.detected_food || 'Unknown',
+                        confidence: data.detection?.confidence || 0,
+                        nutrition: data.detection?.nutrition || {
+                            calories: 0,
+                            protein: 0,
+                            carbs: 0,
+                            fats: 0,
+                            fiber: 0
+                        }
+                    }
                 };
 
                 setLastCapture(result);
