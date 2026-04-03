@@ -15,7 +15,7 @@ export default function Navigation() {
     { href: '/dashboard', label: 'Home', icon: Home },
     { href: '/stats', label: 'Stats', icon: BarChart3 },
     { href: '/ranking', label: 'Ranks', icon: Trophy },
-    { href: '/camera', label: 'Scan', icon: Camera },
+    { href: '/calories', label: 'Calories', icon: Camera },
   ]
 
   const settingsItems = [
