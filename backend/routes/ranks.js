@@ -1,7 +1,7 @@
 import express from 'express'
 import { RANK_THRESHOLDS, getRankFromLevel } from '../utils/rank.js'
 import { createClient } from '@supabase/supabase-js'
-import { auth } from '../middleware/auth.js'
+import { authenticate } from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -25,7 +25,7 @@ router.get('/thresholds', async (req, res) => {
 
 // Get leaderboard with rankings - supports filtering by stat
 // Query params: type (global|strength|speed|endurance|agility|power|recovery)
-router.get('/leaderboard', auth, async (req, res) => {
+router.get('/leaderboard', authenticate, async (req, res) => {
   try {
     const userId = req.userId
     const filterType = req.query.type || 'global'
@@ -135,7 +135,7 @@ router.get('/leaderboard', auth, async (req, res) => {
 })
 
 // Get user's rank position
-router.get('/position/:userId', auth, async (req, res) => {
+router.get('/position/:userId', authenticate, async (req, res) => {
   try {
     const targetUserId = req.params.userId
 
