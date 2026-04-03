@@ -37,7 +37,6 @@ router.get('/leaderboard', authenticate, async (req, res) => {
       .from('users')
       .select('id, name, level, total_xp')
       .order(filterType === 'global' ? 'total_xp' : filterType, { ascending: false })
-      .limit(100)
 
     if (fetchError) {
       console.error('[Ranks] Error fetching users:', fetchError)

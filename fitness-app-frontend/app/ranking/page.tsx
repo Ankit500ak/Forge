@@ -201,7 +201,7 @@ export default function RankingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rankings.slice(0, 50).map((ranker, idx) => {
+                    {rankings.map((ranker, idx) => {
                       const isCurrent = ranker.id === user.id
                       return (
                         <tr
