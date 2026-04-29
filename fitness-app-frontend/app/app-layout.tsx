@@ -1,6 +1,7 @@
 import React from 'react'
 import { AuthProvider } from '@/lib/auth-context'
 import { AppProvider } from '@/lib/app-context'
+import { Analytics } from "@vercel/analytics/next"
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -8,6 +9,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       <AppProvider>
         {children}
       </AppProvider>
+      <Analytics />
     </AuthProvider>
   )
 }
