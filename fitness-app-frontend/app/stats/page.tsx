@@ -99,6 +99,7 @@ export default function StatsPage() {
 
   const [loading, setLoading] = useState(true)
   const [userStats, setUserStats] = useState<any>(null)
+  const [gameStats, setGameStats] = useState<any>(null)
   const [completedCount, setCompletedCount] = useState(0)
   const [totalTasks, setTotalTasks] = useState(0)
 
@@ -111,11 +112,13 @@ export default function StatsPage() {
     const fetchStats = async () => {
       try {
         setLoading(true)
-        const [userRes, tasksRes] = await Promise.all([
+        const [userRes, gameRes, tasksRes] = await Promise.all([
           apiClient.get('/users/me'),
+          apiClient.get('/users/me/game'),
           apiClient.get('/tasks/today'),
         ])
-        if (userRes.data) setUserStats(userRes.data)
+        if (userRes.data?.user) setUserStats(userRes.data.user)
+        if (gameRes.data) setGameStats(gameRes.data)
         if (tasksRes.data?.tasks) {
           const t = tasksRes.data.tasks
           setTotalTasks(t.length)
@@ -147,10 +150,12 @@ export default function StatsPage() {
 
   // ── Data ────────────────────────────────────────────────────────────────────
   const categoryStats = [
-    { name: 'Cardio', value: 35, fill: '#a78bfa' },
-    { name: 'Strength', value: 30, fill: '#60a5fa' },
-    { name: 'Flexibility', value: 20, fill: '#34d399' },
-    { name: 'Recovery', value: 15, fill: '#f472b6' },
+    { name: 'Strength', value: gameStats?.stats?.strength || 10, fill: '#60a5fa' },
+    { name: 'Endurance', value: gameStats?.stats?.endurance || 10, fill: '#34d399' },
+    { name: 'Speed', value: gameStats?.stats?.speed || 10, fill: '#a78bfa' },
+    { name: 'Agility', value: gameStats?.stats?.agility || 10, fill: '#fbbf24' },
+    { name: 'Power', value: gameStats?.stats?.power || 10, fill: '#fb923c' },
+    { name: 'Recovery', value: gameStats?.stats?.recovery || 10, fill: '#f472b6' },
   ]
 
   const progressData = [
@@ -168,7 +173,7 @@ export default function StatsPage() {
     { label: 'Name', value: userStats?.name || 'User' },
     { label: 'Fitness Level', value: userStats?.fitness_level || 'Beginner' },
     { label: 'Age', value: userStats?.age || '—' },
-    { label: 'Member Since', value: 'Mar 2026' },
+    { label: 'Member Since', value: new Date(userStats?.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) },
   ]
 
   return (
@@ -206,9 +211,9 @@ export default function StatsPage() {
 
           {/* ── Key metrics ── */}
           <div className="grid grid-cols-2 gap-3">
-            <StatPill label="Total XP" value={(userStats?.total_xp || 0).toLocaleString()} sub="Experience points" accent="#a78bfa" />
-            <StatPill label="Level" value={userStats?.level || 1} sub="Current rank" accent="#60a5fa" />
-            <StatPill label="Total Workouts" value={(userStats?.total_workouts || 0).toLocaleString()} sub={`${Math.floor((userStats?.total_workouts || 0) / 4)} per week`} accent="#fb923c" />
+            <StatPill label="Total XP" value={(gameStats?.progression?.total_xp || 0).toLocaleString()} sub="Experience points" accent="#a78bfa" />
+            <StatPill label="Level" value={gameStats?.progression?.level || 1} sub={gameStats?.rankMetadata?.rank || 'Recruit'} accent="#60a5fa" />
+            <StatPill label="Stat Pts" value={gameStats?.progression?.stat_points || 0} sub="Available points" accent="#fb923c" />
             <div
               className="relative rounded-2xl p-5 flex flex-col gap-1 items-start overflow-hidden"
               style={{
@@ -244,10 +249,10 @@ export default function StatsPage() {
           <Section title="Key Metrics" accent="#a78bfa">
             {userStats ? (
               <div className="space-y-3">
-                <AttrRow label="Calories Burned" value={userStats?.total_calories || 0} max={5000} color="#f472b6" />
-                <AttrRow label="Distance Covered" value={userStats?.total_distance || 0} max={100} color="#60a5fa" />
-                <AttrRow label="Total Minutes" value={userStats?.total_minutes || 0} max={500} color="#34d399" />
-                <AttrRow label="Rest Days" value={userStats?.rest_days || 0} max={2} color="#fbbf24" />
+                <AttrRow label="Tasks Completed" value={totalTasks ? totalTasks - completedCount : 0} max={totalTasks || 10} color="#f472b6" />
+                <AttrRow label="Points Earned" value={gameStats?.progression?.total_xp || 0} max={(gameStats?.progression?.total_xp || 0) + 100} color="#60a5fa" />
+                <AttrRow label="Level Progress" value={gameStats?.progression?.next_level_percent || 0} max={100} color="#34d399" />
+                <AttrRow label="Rank Position" value={gameStats?.rankMetadata?.thresholds?.findIndex((r: any) => r.name === gameStats?.rankMetadata?.rank) || 0} max={gameStats?.rankMetadata?.thresholds?.length || 10} color="#fbbf24" />
               </div>
             ) : (
               <p className="text-zinc-600 text-xs text-center py-10">Start a workout to see your metrics</p>

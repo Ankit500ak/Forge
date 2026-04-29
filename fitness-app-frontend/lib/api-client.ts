@@ -29,7 +29,9 @@ apiClient.interceptors.response.use(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '/signin';
+        if (window.location.pathname !== '/') {
+          window.location.href = '/';
+        }
       }
     }
     return Promise.reject(error);
@@ -78,11 +80,11 @@ export const taskApi = {
   // Get today's tasks
   getTodayTasks: () =>
     apiClient.get('/tasks/today'),
-  
+
   // Get all user tasks
   getUserTasks: () =>
     apiClient.get('/tasks'),
-  
+
   // Create a manual task
   createTask: (data: {
     title: string
@@ -93,19 +95,19 @@ export const taskApi = {
     description?: string
   }) =>
     apiClient.post('/tasks', data),
-  
+
   // Complete a task
   completeTask: (taskId: string) =>
     apiClient.post('/tasks/complete', { taskId }),
-  
+
   // Delete a task
   deleteTask: (taskId: string) =>
     apiClient.delete(`/tasks/${taskId}`),
-  
+
   // Generate single ML task
   generateMLTask: () =>
     apiClient.post('/tasks/generate-ml'),
-  
+
   // Generate multiple ML tasks
   generateMLTasksBatch: (count: number = 4) =>
     apiClient.post('/tasks/generate-ml-batch', { count }),
@@ -116,11 +118,11 @@ export const userApi = {
   // Get user profile
   getProfile: () =>
     apiClient.get('/users/me'),
-  
+
   // Get user stats
   getStats: () =>
     apiClient.get('/users/me'),
-  
+
   // Update user profile
   updateProfile: (data: Record<string, any>) =>
     apiClient.put('/users/profile/update', data),
@@ -131,7 +133,7 @@ export const rankApi = {
   // Get leaderboard
   getLeaderboard: () =>
     apiClient.get('/ranks/leaderboard'),
-  
+
   // Get user rank
   getUserRank: (userId: string) =>
     apiClient.get(`/ranks/${userId}`),

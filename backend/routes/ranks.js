@@ -32,18 +32,26 @@ router.get('/leaderboard', authenticate, async (req, res) => {
 
     console.log(`[Ranks] Fetching leaderboard (${filterType}) for user: ${userId}`)
 
-    // Fetch all users with their stats
-    const { data: users, error: fetchError } = await supabase
+    // Fetch all users
+    const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, name, level, total_xp')
-      .order(filterType === 'global' ? 'total_xp' : filterType, { ascending: false })
+      .select('id, name')
 
-    if (fetchError) {
-      console.error('[Ranks] Error fetching users:', fetchError)
+    if (usersError) {
+      console.error('[Ranks] Error fetching users:', usersError)
       return res.status(500).json({
         message: 'Failed to fetch leaderboard',
-        error: fetchError.message
+        error: usersError.message
       })
+    }
+
+    // Get progression for all users
+    const { data: allProgression, error: progError } = await supabase
+      .from('user_progression')
+      .select('user_id, level, total_xp')
+
+    if (progError) {
+      console.error('[Ranks] Error fetching progression:', progError)
     }
 
     // Get stats for all users
@@ -71,8 +79,19 @@ router.get('/leaderboard', authenticate, async (req, res) => {
       })
     }
 
+    // Build progression map
+    const progMap = {}
+    if (allProgression) {
+      allProgression.forEach(prog => {
+        progMap[prog.user_id] = {
+          level: prog.level || 1,
+          totalXP: prog.total_xp || 0
+        }
+      })
+    }
+
     // Enrich users with rank and stats
-    const enrichedUsers = users.map((user, idx) => {
+    const enrichedUsers = users.map((user) => {
       const userStats = statsMap[user.id] || {
         strength: 0,
         speed: 0,
@@ -81,13 +100,13 @@ router.get('/leaderboard', authenticate, async (req, res) => {
         power: 0,
         recovery: 0
       }
-      const rank = getRankFromLevel(user.level)
+      const userProg = progMap[user.id] || { level: 1, totalXP: 0 }
+      const rank = getRankFromLevel(userProg.level)
       return {
         id: user.id,
         name: user.name,
-        level: user.level || 1,
-        totalXP: user.total_xp || 0,
-        rank: idx + 1,
+        level: userProg.level,
+        totalXP: userProg.totalXP,
         userRank: rank,
         strength: userStats.strength,
         speed: userStats.speed,
@@ -104,6 +123,20 @@ router.get('/leaderboard', authenticate, async (req, res) => {
           userStats.recovery
         )
       }
+    })
+
+    // Sort accordingly
+    enrichedUsers.sort((a, b) => {
+      if (filterType === 'global') {
+        return b.totalXP - a.totalXP
+      } else {
+        return b[filterType] - a[filterType]
+      }
+    })
+
+    // Assign numeric rank
+    enrichedUsers.forEach((u, idx) => {
+      u.rank = idx + 1
     })
 
     // Find current user's position

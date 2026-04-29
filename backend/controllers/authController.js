@@ -380,12 +380,7 @@ async function initializeUserRecords(userId, additionalData = {}) {
       .from('user_stats')
       .upsert({
         user_id: userId,
-        strength: 0,
-        speed: 0,
-        endurance: 0,
-        agility: 0,
-        power: 0,
-        recovery: 0,
+        user_id_ref: userId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' })
@@ -407,7 +402,6 @@ async function initializeUserRecords(userId, additionalData = {}) {
         user_id: userId,
         level: 1,
         total_xp: 0,
-        current_xp: 0,
         xp_to_next_level: 100,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

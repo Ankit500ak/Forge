@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import Navigation from '@/components/navigation'
 import RankBadge from '@/components/rank-badge'
 import apiClient from '@/lib/api-client'
+import { Trophy, Activity, Zap, Shield, Flame, Target, Star, HeartPulse } from 'lucide-react'
 
 interface RankerUser {
   id: string
@@ -23,33 +24,40 @@ interface RankerUser {
   recovery: number
 }
 
+const FILTERS = [
+  { id: 'global', label: 'Global XP', icon: Star, color: '#a78bfa' },
+  { id: 'strength', label: 'Strength', icon: Target, color: '#f43f5e' },
+  { id: 'speed', label: 'Speed', icon: Zap, color: '#eab308' },
+  { id: 'endurance', label: 'Endurance', icon: Flame, color: '#3b82f6' },
+  { id: 'agility', label: 'Agility', icon: Activity, color: '#22c55e' },
+  { id: 'power', label: 'Power', icon: Shield, color: '#a855f7' },
+  { id: 'recovery', label: 'Recovery', icon: HeartPulse, color: '#ec4899' }
+] as const
+
 export default function RankingPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const [filter, setFilter] = useState<'global' | 'strength' | 'speed' | 'endurance' | 'agility' | 'power' | 'recovery'>('global')
+  const [filter, setFilter] = useState<typeof FILTERS[number]['id']>('global')
   const [rankings, setRankings] = useState<RankerUser[]>([])
   const [currentUserRank, setCurrentUserRank] = useState<RankerUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    if (!user) {
-      router.push('/')
-    }
+    setMounted(true)
+    if (!user) router.push('/')
   }, [user, router])
 
   useEffect(() => {
     if (!user) return
-
     const fetchLeaderboard = async () => {
       try {
         setLoading(true)
         setError(null)
-
         const response = await apiClient.get('/ranks/leaderboard', {
           params: { type: filter }
         })
-
         setRankings(response.data.rankings || [])
         setCurrentUserRank(response.data.currentUserRank || null)
       } catch (err) {
@@ -59,299 +67,197 @@ export default function RankingPage() {
         setLoading(false)
       }
     }
-
     fetchLeaderboard()
   }, [user, filter])
 
-  if (!user) {
-    return null
-  }
-
-  const getRankColor = (rank: string) => {
-    const colors: Record<string, string> = {
-      'S': 'from-red-600 to-red-700',
-      'S+': 'from-red-500 to-red-600',
-      'S++': 'from-red-500 to-pink-600',
-      'SS': 'from-red-500 to-pink-500',
-      'SS+': 'from-pink-500 to-pink-600',
-      'Monarch': 'from-yellow-500 to-orange-600',
-      'A': 'from-orange-500 to-orange-600',
-      'A+': 'from-orange-400 to-orange-500',
-      'B': 'from-blue-500 to-blue-600',
-      'B+': 'from-blue-400 to-blue-500',
-      'B++': 'from-blue-400 to-cyan-500',
-      'C': 'from-purple-500 to-purple-600',
-      'C+': 'from-purple-400 to-purple-500',
-      'D': 'from-green-500 to-green-600',
-      'D+': 'from-green-400 to-green-500',
-      'E': 'from-gray-500 to-gray-600',
-      'F': 'from-slate-500 to-slate-600',
-    }
-    return colors[rank] || 'from-gray-500 to-gray-600'
-  }
+  if (!mounted || !user) return null
 
   const getStatValue = (ranker: RankerUser) => {
     if (filter === 'global') return ranker.totalXP
     return ranker[filter as keyof RankerUser] || 0
   }
 
-  const getStatLabel = () => {
-    const labels: Record<string, string> = {
-      global: 'XP',
-      strength: 'STR',
-      speed: 'SPD',
-      endurance: 'END',
-      agility: 'AGI',
-      power: 'PWR',
-      recovery: 'REC',
-    }
-    return labels[filter] || 'XP'
-  }
+  const activeFilterData = FILTERS.find(f => f.id === filter) || FILTERS[0]
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <Navigation />
-      <main className="overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-b from-card/95 to-card/50 backdrop-blur-sm border-b-2 border-orange-600/50 p-4 z-10">
-          <h1 className="text-2xl font-bold text-orange-500">Rankings</h1>
-          <p className="text-muted-foreground text-xs mt-1">Global leaderboards</p>
-        </div>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Mono:wght@400;500;700&display=swap');
+        * { box-sizing: border-box; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
 
-        {error && (
-          <div className="m-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400">
-            {error}
+      <div className="min-h-screen pb-28 text-white" style={{ background: '#0a0a10', fontFamily: "'DM Mono', monospace" }}>
+        <Navigation />
+
+        {/* ── Sticky header ── */}
+        <header
+          className="sticky top-0 z-20 flex items-center justify-between px-5 py-4"
+          style={{
+            background: 'linear-gradient(180deg, #0a0a10f5 0%, #0a0a1080 100%)',
+            borderBottom: '1px solid #ffffff0a',
+            backdropFilter: 'blur(16px)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#fbbf2420', color: '#fbbf24' }}>
+              <Trophy size={16} />
+            </div>
+            <div>
+              <h1 className="text-xl font-black leading-none" style={{ fontFamily: "'Syne', sans-serif", letterSpacing: '-0.03em' }}>Leaderboard</h1>
+              <p className="text-[10px] text-zinc-500 mt-0.5 tracking-widest uppercase">Global Ranks</p>
+            </div>
           </div>
-        )}
+        </header>
 
-        <div className="p-4 space-y-4">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-orange-500 mb-2">Global Rankings</h1>
-            <p className="text-muted-foreground">See where you stand among the forged warriors</p>
-          </div>
+        <main className="px-4 pt-4 space-y-6">
+          {error && (
+             <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs text-red-400">
+               {error}
+             </div>
+          )}
 
-          {/* User Position Card */}
+          {/* Current User Card */}
           {currentUserRank && (
-            <div className="mb-8 bg-gradient-to-r from-orange-600/20 to-purple-600/20 border border-orange-500/50 rounded-lg p-6 shadow-lg shadow-orange-500/20">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <p className="text-muted-foreground text-sm mb-1">Your Current Rank</p>
-                  <h2 className="text-4xl font-bold text-orange-400 mb-2">#{currentUserRank.rank}</h2>
-                  <div className="flex items-center gap-4">
-                    <div className="text-lg">
-                      <span className="text-muted-foreground">Level </span>
-                      <span className="font-bold text-purple-400">{currentUserRank.level}</span>
-                    </div>
-                    <div className="text-lg">
-                      <span className="text-muted-foreground">
-                        {filter === 'global' ? 'XP' : getStatLabel()}{' '}
-                      </span>
-                      <span className="font-bold text-yellow-400">
-                        {typeof getStatValue(currentUserRank) === 'number'
-                          ? getStatValue(currentUserRank).toLocaleString()
-                          : 0}
-                      </span>
-                    </div>
-                  </div>
+            <div
+              className="relative rounded-3xl p-5 overflow-hidden flex flex-col gap-4"
+              style={{
+                background: `linear-gradient(135deg, ${activeFilterData.color}20 0%, ${activeFilterData.color}05 100%)`,
+                border: `1px solid ${activeFilterData.color}30`,
+                boxShadow: `0 8px 32px ${activeFilterData.color}15, inset 0 1px 0 ${activeFilterData.color}20`,
+              }}
+            >
+              <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-3xl opacity-40 mix-blend-screen" style={{ background: activeFilterData.color }} />
+              
+              <div className="flex items-start justify-between relative z-10">
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: `${activeFilterData.color}99` }}>Your Standing</p>
+                  <p className="text-4xl font-black leading-none" style={{ fontFamily: "'Syne', sans-serif" }}>
+                    <span style={{ color: `${activeFilterData.color}60` }}>#</span>{currentUserRank.rank}
+                  </p>
                 </div>
-                <RankBadge rank={currentUserRank.userRank} size="lg" />
+                <RankBadge rank={currentUserRank.userRank} size="sm" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 relative z-10">
+                 <div className="bg-[#00000040] rounded-xl p-3 border border-[#ffffff0a]">
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Level</p>
+                    <p className="text-lg font-bold" style={{ color: '#a78bfa' }}>{currentUserRank.level}</p>
+                 </div>
+                 <div className="bg-[#00000040] rounded-xl p-3 border border-[#ffffff0a]">
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">{activeFilterData.label}</p>
+                    <p className="text-lg font-bold" style={{ color: activeFilterData.color }}>
+                      {typeof getStatValue(currentUserRank) === 'number' ? getStatValue(currentUserRank).toLocaleString() : 0}
+                    </p>
+                 </div>
               </div>
             </div>
           )}
 
-          {/* Filter Buttons */}
-          <div className="mb-6 flex gap-2 flex-wrap">
-            {(['global', 'strength', 'speed', 'endurance', 'agility', 'power', 'recovery'] as const).map((filterOption) => (
-              <button
-                key={filterOption}
-                onClick={() => setFilter(filterOption)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === filterOption
-                  ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/50'
-                  : 'bg-card border border-orange-500/30 text-muted-foreground hover:text-foreground'
-                  }`}
-              >
-                {filterOption === 'global' && 'Global Ranking'}
-                {filterOption === 'strength' && 'Strength'}
-                {filterOption === 'speed' && 'Speed'}
-                {filterOption === 'endurance' && 'Endurance'}
-                {filterOption === 'agility' && 'Agility'}
-                {filterOption === 'power' && 'Power'}
-                {filterOption === 'recovery' && 'Recovery'}
-              </button>
-            ))}
+          {/* Filters (Horizontal Scroll) */}
+          <div className="flex overflow-x-auto gap-2 pb-2 hide-scrollbar -mx-4 px-4 snap-x">
+            {FILTERS.map((f) => {
+              const Icon = f.icon
+              const isActive = filter === f.id
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setFilter(f.id)}
+                  className="snap-start shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold transition-all"
+                  style={{
+                    background: isActive ? `${f.color}25` : '#16161e',
+                    border: `1px solid ${isActive ? `${f.color}50` : '#ffffff0a'}`,
+                    color: isActive ? f.color : '#888',
+                    boxShadow: isActive ? `0 0 20px ${f.color}20` : 'none'
+                  }}
+                >
+                  <Icon size={14} strokeWidth={2.5} />
+                  {f.label}
+                </button>
+              )
+            })}
           </div>
 
-          {/* Rankings Table */}
-          <div className="bg-card border border-orange-500/50 rounded-lg overflow-hidden shadow-lg shadow-orange-500/20">
-            <div className="overflow-x-auto">
-              {loading ? (
-                <div className="p-8 text-center text-muted-foreground">Loading leaderboard...</div>
-              ) : (
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border bg-orange-500/5">
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Rank</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Warrior</th>
-                      <th className="px-6 py-4 text-center text-sm font-semibold text-muted-foreground">Tier</th>
-                      <th className="px-6 py-4 text-center text-sm font-semibold text-muted-foreground">Level</th>
-                      <th className="px-6 py-4 text-right text-sm font-semibold text-muted-foreground">
-                        {filter === 'global' ? 'XP' : getStatLabel().toUpperCase()}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rankings.map((ranker, idx) => {
-                      const isCurrent = ranker.id === user.id
-                      return (
-                        <tr
-                          key={ranker.id}
-                          className={`border-b border-border transition-colors ${isCurrent
-                            ? 'bg-orange-500/10 border-orange-500/30'
-                            : idx < 3
-                              ? 'hover:bg-orange-500/5'
-                              : 'hover:bg-orange-500/5'
-                            }`}
+          {/* Leaderboard List */}
+          <div className="space-y-3">
+             <div className="flex items-center gap-2 mb-2 px-1">
+               <div className="w-1 h-4 rounded-full" style={{ background: activeFilterData.color }} />
+               <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-400">Top {activeFilterData.label}</h2>
+             </div>
+
+             {loading ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-4">
+                  <div className="relative w-12 h-12">
+                    <div className="absolute inset-0 rounded-full border-2 border-[#ffffff10]" />
+                    <div className="absolute inset-0 rounded-full border-t-2 animate-spin" style={{ borderColor: activeFilterData.color }} />
+                  </div>
+                  <p className="text-xs text-zinc-600 tracking-widest uppercase">Fetching Ranks...</p>
+                </div>
+             ) : (
+                <div className="space-y-2">
+                  {rankings.map((ranker, idx) => {
+                    const isCurrent = ranker.id === user.id
+                    const isFirst = idx === 0
+                    const isSecond = idx === 1
+                    const isThird = idx === 2
+                    
+                    let rankColor = '#444'
+                    let rankBg = '#16161e'
+                    if (isFirst) { rankColor = '#fbbf24'; rankBg = '#fbbf2415' }
+                    else if (isSecond) { rankColor = '#94a3b8'; rankBg = '#94a3b815' }
+                    else if (isThird) { rankColor = '#b45309'; rankBg = '#b4530915' }
+
+                    return (
+                      <div 
+                        key={ranker.id}
+                        className="flex items-center gap-3 p-3 rounded-2xl transition-all"
+                        style={{
+                          background: isCurrent ? `${activeFilterData.color}15` : '#16161e',
+                          border: `1px solid ${isCurrent ? `${activeFilterData.color}40` : '#ffffff06'}`,
+                        }}
+                      >
+                        {/* Rank Badge */}
+                        <div 
+                          className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-sm font-black"
+                          style={{
+                            background: rankBg, border: `1px solid ${rankColor}30`, color: rankColor,
+                            fontFamily: "'Syne', sans-serif"
+                          }}
                         >
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${idx === 0
-                                  ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
-                                  : idx === 1
-                                    ? 'bg-gray-500/20 text-gray-300 border border-gray-500/50'
-                                    : idx === 2
-                                      ? 'bg-orange-700/30 text-orange-400 border border-orange-700/50'
-                                      : 'bg-gray-800 text-gray-400 border border-gray-700'
-                                  }`}
-                              >
-                                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : ranker.rank}
-                              </div>
-                              {isCurrent && (
-                                <span className="text-xs font-bold text-orange-400 bg-orange-500/20 px-2 py-1 rounded">
-                                  YOU
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div>
-                              <p className="font-bold text-foreground">{ranker.name}</p>
-                              <p className="text-xs text-muted-foreground mt-1">{getStatValue(ranker).toLocaleString()} {getStatLabel()}</p>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <div className={`inline-block px-3 py-1 rounded-full text-sm font-bold border ${getRankColor(ranker.userRank)}`}>
-                              {ranker.userRank}-Tier
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="font-bold text-purple-400">Lvl {ranker.level}</span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <span className="font-bold text-orange-400">{getStatValue(ranker).toLocaleString()}</span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                          {ranker.rank}
+                        </div>
+
+                        {/* Name & Tier */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold truncate text-zinc-200">
+                              {ranker.name}
+                            </p>
+                            {isCurrent && <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase" style={{ background: activeFilterData.color, color: '#000' }}>You</span>}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                             <span className="text-[10px] text-zinc-500">Lvl {ranker.level}</span>
+                             <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-black/40 text-zinc-400 border border-white/5">{ranker.userRank}-Tier</span>
+                          </div>
+                        </div>
+
+                        {/* Score */}
+                        <div className="text-right">
+                          <p className="text-sm font-black tabular-nums" style={{ color: activeFilterData.color }}>
+                            {typeof getStatValue(ranker) === 'number' ? getStatValue(ranker).toLocaleString() : 0}
+                          </p>
+                          <p className="text-[9px] text-zinc-600 uppercase tracking-widest">{activeFilterData.id === 'global' ? 'XP' : 'PTS'}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+             )}
           </div>
-
-          {/* Progression Info */}
-          <div className="mt-12 grid md:grid-cols-3 gap-6">
-            <div className="bg-card border border-blue-500/50 rounded-lg p-6">
-              <h3 className="font-bold text-blue-400 mb-4">📈 Rank Distribution</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">S-Tier</span>
-                  <span className="text-red-400 font-bold">2%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">A-Tier</span>
-                  <span className="text-orange-400 font-bold">8%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">B-Tier</span>
-                  <span className="text-yellow-400 font-bold">20%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">C-Tier</span>
-                  <span className="text-green-400 font-bold">35%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">D-Tier</span>
-                  <span className="text-blue-400 font-bold">25%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">E-Tier & F</span>
-                  <span className="text-purple-400 font-bold">10%</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-card border border-green-500/50 rounded-lg p-6">
-              <h3 className="font-bold text-green-400 mb-4">🏆 Rank Thresholds</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">F → E</span>
-                  <span className="font-bold">1,000 XP</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">E → D</span>
-                  <span className="font-bold">5,000 XP</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">D → C</span>
-                  <span className="font-bold">15,000 XP</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">C → B</span>
-                  <span className="font-bold">35,000 XP</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">B → A</span>
-                  <span className="font-bold">70,000 XP</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">A → S</span>
-                  <span className="font-bold">120,000 XP</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-card border border-purple-500/50 rounded-lg p-6">
-              <h3 className="font-bold text-purple-400 mb-4">⚡ Your Statistics</h3>
-              <div className="space-y-3">
-                {currentUserRank && (
-                  <>
-                    <div>
-                      <div className="flex justify-between mb-1 text-sm">
-                        <span className="text-muted-foreground">Rank Position</span>
-                        <span className="text-purple-400 font-bold">#{currentUserRank.rank}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between mb-1 text-sm">
-                        <span className="text-muted-foreground">Level</span>
-                        <span className="text-green-400 font-bold">{currentUserRank.level}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between mb-1 text-sm">
-                        <span className="text-muted-foreground">Total XP</span>
-                        <span className="text-blue-400 font-bold">{currentUserRank.totalXP.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+          
+        </main>
+      </div>
+    </>
   )
 }

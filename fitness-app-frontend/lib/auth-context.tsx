@@ -23,14 +23,14 @@ interface SignupData {
   name: string
   email: string
   password: string
-  
+
   // Step 2: Personal Metrics
   age?: number
   gender?: string
   height?: number
   weight?: number
   targetWeight?: number
-  
+
   // Step 3: Fitness Profile
   fitnessLevel?: string
   goals?: string[]
@@ -38,7 +38,7 @@ interface SignupData {
   preferredWorkouts?: string[]
   workoutFrequency?: string
   workoutDuration?: string
-  
+
   // Step 4: Health & Lifestyle
   medicalConditions?: string[]
   injuries?: string
@@ -46,7 +46,7 @@ interface SignupData {
   sleepHours?: string
   stressLevel?: string
   smokingStatus?: string
-  
+
   // Step 5: Preferences
   preferredWorkoutTime?: string
   gymAccess?: string
@@ -83,11 +83,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedToken = localStorage.getItem('token')
     const storedUser = localStorage.getItem('user')
-    
+
     if (storedToken && storedUser) {
       setToken(storedToken)
       setUser(JSON.parse(storedUser))
-      
+
       // Set axios default header
       axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`
     }
@@ -103,25 +103,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           handleLogout()
           router.push('/signup')
         }
-        
+
         if (response.data?.profileComplete === false && !response.data?.requiresRegistration) {
           console.log('[Auth Context] Profile incomplete but not critical')
           // Don't logout, just redirect to complete profile
           router.push('/complete-profile')
         }
-        
+
         return response
       },
       (error) => {
         const status = error.response?.status
         const errorData = error.response?.data
-        
+
         console.log('[Auth Context] Error interceptor:', { status, errorData })
-        
+
         // Handle 401 Unauthorized
         if (status === 401) {
           const errorType = errorData?.error
-          
+
           // User not found or incomplete profile - redirect to signup
           if (
             errorData?.requiresRegistration ||
@@ -134,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             router.push('/signup')
             return Promise.reject(error)
           }
-          
+
           // Token expired or invalid - redirect to login
           if (
             errorType === 'TokenExpiredError' ||
@@ -143,34 +143,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ) {
             console.log('[Auth Context] Token invalid/expired, redirecting to login')
             handleLogout()
-            router.push('/signin')
+            if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+              router.push('/')
+            }
             return Promise.reject(error)
           }
         }
-        
+
         // Handle 403 Forbidden (inactive account, permission denied)
         if (status === 403) {
           const errorType = errorData?.error
-          
+
           if (errorType === 'AccountInactive') {
             console.log('[Auth Context] Account inactive')
             handleLogout()
             // Don't redirect, show error message
           }
-          
+
           if (errorData?.requiresSupport) {
             console.log('[Auth Context] Requires support')
             // Show support message
           }
         }
-        
+
         // Handle 404 Not Found
         if (status === 404 && errorData?.requiresRegistration) {
           console.log('[Auth Context] Resource not found, profile incomplete')
           handleLogout()
           router.push('/signup')
         }
-        
+
         return Promise.reject(error)
       }
     )
@@ -192,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       console.log('[Auth Context] Logging in:', email)
       console.log('[Auth Context] API endpoint:', `${API_BASE}/api/auth/login`)
       const response = await axios.post(`${API_BASE}/api/auth/login`, {
@@ -226,19 +228,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData)
       localStorage.setItem('token', authToken)
       localStorage.setItem('user', JSON.stringify(userData))
-      
+
       // Set axios default header
       axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`
 
       console.log('[Auth Context] Login successful')
-      
+
       return response.data
     } catch (err: any) {
       console.error('[Auth Context] Login error:', err)
-      
+
       const errorMessage = err.response?.data?.message || err.message || 'Login failed'
       setError(errorMessage)
-      
+
       throw err
     } finally {
       setIsLoading(false)
@@ -255,14 +257,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       console.log('[Auth Context] Signing up:', email)
       console.log('[Auth Context] API endpoint:', `${API_BASE}/api/auth/register`)
-      console.log('[Auth Context] Signup data:', { 
-        name, 
-        email, 
+      console.log('[Auth Context] Signup data:', {
+        name,
+        email,
         password: '***',
-        ...additionalData 
+        ...additionalData
       })
       // Combine basic data with additional data
       const signupData = {
@@ -289,20 +291,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData)
       localStorage.setItem('token', authToken)
       localStorage.setItem('user', JSON.stringify(userData))
-      
+
       // Set axios default header
       axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`
 
       console.log('[Auth Context] Signup successful')
-      
+
       return response.data
     } catch (err: any) {
       console.error('[Auth Context] Signup error:', err)
       console.error('[Auth Context] Error response:', err.response?.data)
-      
+
       const errorMessage = err.response?.data?.message || err.message || 'Registration failed'
       setError(errorMessage)
-      
+
       throw err
     } finally {
       setIsLoading(false)
@@ -311,8 +313,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Keep register method for backward compatibility
   const register = async (
-    email: string, 
-    password: string, 
+    email: string,
+    password: string,
     name?: string,
     age?: number,
     gender?: string,
@@ -321,7 +323,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       console.log('[Auth Context] Registering:', email)
       console.log('[Auth Context] API endpoint:', `${API_BASE}/api/auth/register`)
       const response = await axios.post(`${API_BASE}/api/auth/register`, {
@@ -349,19 +351,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData)
       localStorage.setItem('token', authToken)
       localStorage.setItem('user', JSON.stringify(userData))
-      
+
       // Set axios default header
       axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`
 
       console.log('[Auth Context] Registration successful')
-      
+
       return response.data
     } catch (err: any) {
       console.error('[Auth Context] Registration error:', err)
-      
+
       const errorMessage = err.response?.data?.message || err.message || 'Registration failed'
       setError(errorMessage)
-      
+
       throw err
     } finally {
       setIsLoading(false)
@@ -371,9 +373,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       setIsLoading(true)
-      
+
       console.log('[Auth Context] Logging out')
-      
+
       // Call backend logout endpoint if token exists
       if (token) {
         try {
@@ -386,7 +388,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       handleLogout()
       router.push('/')
-      
+
       console.log('[Auth Context] Logout successful')
     } catch (err) {
       console.error('[Auth Context] Logout error:', err)
@@ -405,7 +407,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       console.log('[Auth Context] Refreshing user data')
-      
+
       const response = await axios.get(`${API_BASE}/api/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`
@@ -420,11 +422,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[Auth Context] User data refreshed')
     } catch (err: any) {
       console.error('[Auth Context] Refresh user error:', err)
-      
+
       // If refresh fails with 401, logout
       if (err.response?.status === 401) {
         handleLogout()
-        router.push('/signin')
+        if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+          router.push('/')
+        }
       }
     }
   }
