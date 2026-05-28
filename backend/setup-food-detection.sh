@@ -40,6 +40,8 @@ echo ""
 echo "📦 Installing Python dependencies..."
 python3 -m pip install --upgrade pip
 python3 -m pip install tensorflow numpy pillow
+# Optional: ultralytics for YOLO object detection (recommended for realtime/multi-item detection)
+python3 -m pip install ultralytics
 
 if [ $? -ne 0 ]; then
     echo "⚠️  Some Python packages failed to install"

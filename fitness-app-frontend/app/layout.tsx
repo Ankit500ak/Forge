@@ -14,6 +14,10 @@ export const metadata: Metadata = {
   title: 'Forge - Gamified Fitness',
   description: 'Where Sweat Becomes Strength. Level up your fitness journey.',
   generator: 'v0.app',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a10' },
+  ],
   icons: {
     icon: [
       {

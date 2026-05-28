@@ -30,6 +30,15 @@ except ImportError:
     from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout
     from tensorflow.keras.models import Sequential, load_model
 
+# Try to import ultralytics YOLO support (optional). If not present, we'll fall back to TF classifier.
+try:
+    from ultralytics import YOLO
+    _HAS_YOLO = True
+    print("✓ Ultralytics YOLO available", file=sys.stderr)
+except Exception:
+    YOLO = None
+    _HAS_YOLO = False
+
 
 class NorthIndianFoodDetector:
     """Detects and classifies North Indian foods from images"""
@@ -271,6 +280,7 @@ class NorthIndianFoodDetector:
     def __init__(self, model_path: str = None):
         """Initialize the food detector with pre-trained model or create new one"""
         self.model = None
+        self.yolo_model = None
         self.model_path = model_path
         self.food_classes = list(self.NORTH_INDIAN_FOODS.keys())
         self.num_classes = len(self.food_classes)
@@ -279,6 +289,24 @@ class NorthIndianFoodDetector:
             self.load_model(model_path)
         else:
             self.create_model()
+
+        # Attempt to load YOLO model if available in ml_models/yolo_food.pt
+        try:
+            backend_dir = Path(__file__).parent.parent
+            yolo_path = backend_dir / 'ml_models' / 'yolo_food.pt'
+            if _HAS_YOLO and yolo_path.exists():
+                try:
+                    self.yolo_model = YOLO(str(yolo_path))
+                    print(f"✓ YOLO model loaded from {yolo_path}", file=sys.stderr)
+                except Exception as e:
+                    print(f"⚠️ Failed to load YOLO model: {e}", file=sys.stderr)
+            else:
+                if _HAS_YOLO:
+                    print("⚠️ No YOLO model file found at ml_models/yolo_food.pt", file=sys.stderr)
+                else:
+                    print("⚠️ Ultralytics YOLO not installed; YOLO disabled", file=sys.stderr)
+        except Exception as e:
+            print(f"⚠️ YOLO initialization error: {e}", file=sys.stderr)
     
     def create_model(self):
         """Create a transfer learning model using MobileNetV2"""
@@ -364,19 +392,107 @@ class NorthIndianFoodDetector:
             Dictionary with detected food, confidence, and nutrition info
         """
         try:
+            # Prefer YOLO object detection when available (more robust for multi-item images)
+            if self.yolo_model is not None:
+                try:
+                    # Run YOLO inference
+                    results = self.yolo_model.predict(source=str(image_path), imgsz=640, conf=confidence_threshold, verbose=False)
+                    # ultralytics returns a list of Results; take first
+                    if results and len(results) > 0:
+                        res = results[0]
+                        # res.boxes.cls gives class indexes; res.boxes.conf confidence
+                        boxes = getattr(res, 'boxes', None)
+                        detected_foods = []
+                        if boxes is not None and len(boxes) > 0:
+                            for b in boxes:
+                                try:
+                                    cls_idx = int(b.cls.cpu().numpy()) if hasattr(b, 'cls') else int(b.cls)
+                                except Exception:
+                                    # older ultralytics versions
+                                    cls_idx = int(b[5]) if len(b) >= 6 else 0
+                                try:
+                                    conf = float(b.conf.cpu().numpy()) if hasattr(b, 'conf') else float(b[4])
+                                except Exception:
+                                    conf = float(b.conf) if hasattr(b, 'conf') else 0.0
+
+                                # Attempt to get bbox coordinates (xyxy)
+                                bbox = None
+                                try:
+                                    if hasattr(b, 'xyxy'):
+                                        arr = b.xyxy.cpu().numpy().tolist()[0]
+                                        # xyxy => [x1, y1, x2, y2]
+                                        bbox = [float(v) for v in arr]
+                                    elif hasattr(b, 'data'):
+                                        # fallback
+                                        arr = b.data.cpu().numpy().tolist()[0]
+                                        bbox = [float(v) for v in arr[:4]]
+                                except Exception:
+                                    bbox = None
+
+                                # Map class index to food name if within range
+                                if 0 <= cls_idx < len(self.food_classes):
+                                    food_name = self.food_classes[cls_idx]
+                                    detected_foods.append({
+                                        'food': food_name,
+                                        'confidence': conf,
+                                        'probability': f"{conf * 100:.2f}%",
+                                        'bbox': bbox
+                                    })
+
+                        # Sort by confidence
+                        detected_foods.sort(key=lambda x: x['confidence'], reverse=True)
+
+                        if not detected_foods:
+                            return {
+                                'status': 'no_food_detected',
+                                'message': 'No food detected with sufficient confidence (YOLO)',
+                                'all_predictions': []
+                            }
+
+                        top_food = detected_foods[0]['food']
+                        top_confidence = detected_foods[0]['confidence']
+                        nutrition_info = self.NORTH_INDIAN_FOODS.get(top_food, {})
+
+                        return {
+                            'status': 'success',
+                            'detected_food': top_food,
+                            'confidence': float(top_confidence),
+                            'probability': f"{float(top_confidence) * 100:.2f}%",
+                            'nutrition': {
+                                'name': nutrition_info.get('name'),
+                                'calories': nutrition_info.get('calories'),
+                                'protein': nutrition_info.get('protein'),
+                                'carbs': nutrition_info.get('carbs'),
+                                'fat': nutrition_info.get('fat'),
+                                'fiber': nutrition_info.get('fiber'),
+                                'category': nutrition_info.get('category'),
+                                'region': nutrition_info.get('region')
+                            },
+                            'all_predictions': detected_foods[:10]
+                        }
+                    else:
+                        return {
+                            'status': 'no_food_detected',
+                            'message': 'YOLO returned no results'
+                        }
+                except Exception as ye:
+                    print(f"⚠️ YOLO detection failed: {ye}", file=sys.stderr)
+                    # Fall back to classifier below
+
+            # Fallback classifier (MobileNet transfer learning)
             if not self.model:
                 return {
                     'error': 'Model not loaded',
                     'status': 'failed'
                 }
-            
+
             # Preprocess image
             img_array = self.preprocess_image(image_path)
-            
+
             # Make prediction
             predictions = self.model.predict(img_array, verbose=0)
             confidence_scores = predictions[0]
-            
+
             # Get predictions above threshold
             detected_foods = []
             for idx, confidence in enumerate(confidence_scores):
@@ -387,22 +503,22 @@ class NorthIndianFoodDetector:
                         'confidence': float(confidence),
                         'probability': f"{float(confidence) * 100:.2f}%"
                     })
-            
+
             # Sort by confidence
             detected_foods.sort(key=lambda x: x['confidence'], reverse=True)
-            
+
             if not detected_foods:
                 return {
                     'status': 'no_food_detected',
                     'message': 'No food detected with sufficient confidence',
                     'top_prediction': self._get_top_prediction(confidence_scores)
                 }
-            
+
             # Get top prediction with full details
             top_food = detected_foods[0]['food']
             top_confidence = detected_foods[0]['confidence']
             nutrition_info = self.NORTH_INDIAN_FOODS[top_food]
-            
+
             return {
                 'status': 'success',
                 'detected_food': top_food,

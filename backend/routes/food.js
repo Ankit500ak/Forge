@@ -74,6 +74,19 @@ router.post('/detect', upload.single('image'), async (req, res) => {
         // Run food detection
         const result = await foodDetectionService.detectFood(imagePath, confidenceThreshold);
 
+        // Normalize result for frontend convenience (flatten nutrition fields)
+        if (result && result.status === 'success' && result.nutrition) {
+            try {
+                result.food_name = result.nutrition.name || result.detected_food || null
+                result.calories = result.nutrition.calories || null
+                result.protein = result.nutrition.protein || null
+                result.carbs = result.nutrition.carbs || null
+                result.fat = result.nutrition.fat || null
+            } catch (e) {
+                // ignore normalization errors
+            }
+        }
+
         // Clean up uploaded file if detection failed
         if (result.status === 'error') {
             try {

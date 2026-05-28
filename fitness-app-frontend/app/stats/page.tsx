@@ -97,6 +97,9 @@ export default function StatsPage() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
 
+  // Dynamically load heavy chart library on the client to reduce initial bundle
+  const [ChartLib, setChartLib] = useState<any>(null)
+
   const [loading, setLoading] = useState(true)
   const [userStats, setUserStats] = useState<any>(null)
   const [gameStats, setGameStats] = useState<any>(null)
@@ -107,6 +110,12 @@ export default function StatsPage() {
     setMounted(true)
     if (!user) router.push('/')
   }, [user, router])
+
+  useEffect(() => {
+    let mounted = true
+    import('recharts').then((mod) => { if (mounted) setChartLib(mod) }).catch(() => {})
+    return () => { mounted = false }
+  }, [])
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -178,11 +187,7 @@ export default function StatsPage() {
 
   return (
     <>
-      {/* Google Fonts */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Mono:wght@400;500&display=swap');
-        * { box-sizing: border-box; }
-      `}</style>
+      {/* Fonts are provided globally via layout; avoid per-page @import to prevent FOUC and duplicate downloads */}
 
       <div className="min-h-screen pb-28" style={{ background: '#0a0a10', fontFamily: "'DM Mono', monospace" }}>
         <Navigation />
@@ -261,22 +266,26 @@ export default function StatsPage() {
 
           {/* ── Weekly Activity ── */}
           <Section title="Weekly Activity" accent="#60a5fa">
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={progressData} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
-                <defs>
-                  <linearGradient id="xpGrad" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.5} />
-                    <stop offset="100%" stopColor="#a78bfa" />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="#ffffff06" vertical={false} />
-                <XAxis dataKey="week" stroke="none" tick={{ fill: '#555', fontSize: 11 }} />
-                <YAxis stroke="none" tick={{ fill: '#444', fontSize: 10 }} />
-                <Tooltip content={<ChartTooltip accent="#60a5fa" />} />
-                <Line type="monotone" dataKey="xp" stroke="url(#xpGrad)" strokeWidth={2.5} dot={{ r: 4, fill: '#60a5fa', strokeWidth: 0 }} name="Workouts" />
-                <Line type="monotone" dataKey="completed" stroke="#34d399" strokeWidth={2.5} strokeDasharray="5 3" dot={{ r: 4, fill: '#34d399', strokeWidth: 0 }} name="Exercises" />
-              </LineChart>
-            </ResponsiveContainer>
+            {ChartLib ? (
+              <ChartLib.ResponsiveContainer width="100%" height={220}>
+                <ChartLib.LineChart data={progressData} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
+                  <defs>
+                    <linearGradient id="xpGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="#a78bfa" />
+                    </linearGradient>
+                  </defs>
+                  <ChartLib.CartesianGrid stroke="#ffffff06" vertical={false} />
+                  <ChartLib.XAxis dataKey="week" stroke="none" tick={{ fill: '#555', fontSize: 11 }} />
+                  <ChartLib.YAxis stroke="none" tick={{ fill: '#444', fontSize: 10 }} />
+                  <ChartLib.Tooltip content={<ChartTooltip accent="#60a5fa" />} />
+                  <ChartLib.Line type="monotone" dataKey="xp" stroke="url(#xpGrad)" strokeWidth={2.5} dot={{ r: 4, fill: '#60a5fa', strokeWidth: 0 }} name="Workouts" />
+                  <ChartLib.Line type="monotone" dataKey="completed" stroke="#34d399" strokeWidth={2.5} strokeDasharray="5 3" dot={{ r: 4, fill: '#34d399', strokeWidth: 0 }} name="Exercises" />
+                </ChartLib.LineChart>
+              </ChartLib.ResponsiveContainer>
+            ) : (
+              <div className="w-full h-56 flex items-center justify-center text-xs text-zinc-500">Loading charts…</div>
+            )}
             <div className="flex gap-4 mt-3">
               <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
                 <div className="w-5 h-0.5 rounded-full" style={{ background: 'linear-gradient(90deg, #60a5fa80, #a78bfa)' }} />
@@ -292,21 +301,25 @@ export default function StatsPage() {
           {/* ── Exercise Breakdown ── */}
           <Section title="Exercise Breakdown" accent="#f472b6">
             <div className="flex items-center gap-4">
-              <ResponsiveContainer width={160} height={160}>
-                <PieChart>
-                  <Pie
-                    data={categoryStats}
-                    cx="50%" cy="50%"
-                    innerRadius={48} outerRadius={72}
-                    paddingAngle={3}
-                    dataKey="value"
-                    strokeWidth={0}
-                  >
-                    {categoryStats.map((e, i) => <Cell key={i} fill={e.fill} />)}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip accent="#f472b6" />} />
-                </PieChart>
-              </ResponsiveContainer>
+              {ChartLib ? (
+                <ChartLib.ResponsiveContainer width={160} height={160}>
+                  <ChartLib.PieChart>
+                    <ChartLib.Pie
+                      data={categoryStats}
+                      cx="50%" cy="50%"
+                      innerRadius={48} outerRadius={72}
+                      paddingAngle={3}
+                      dataKey="value"
+                      strokeWidth={0}
+                    >
+                      {categoryStats.map((e, i) => <ChartLib.Cell key={i} fill={e.fill} />)}
+                    </ChartLib.Pie>
+                    <ChartLib.Tooltip content={<ChartTooltip accent="#f472b6" />} />
+                  </ChartLib.PieChart>
+                </ChartLib.ResponsiveContainer>
+              ) : (
+                <div className="w-40 h-40 flex items-center justify-center text-xs text-zinc-500">Loading chart…</div>
+              )}
               <div className="flex-1 space-y-3">
                 {categoryStats.map((c) => (
                   <div key={c.name}>

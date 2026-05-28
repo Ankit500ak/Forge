@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
@@ -52,10 +52,17 @@ export default function SignInPage() {
   const [error, setError] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [hasMounted, setHasMounted] = useState(false)
+  const errorRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setHasMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (error && errorRef.current) {
+      try { errorRef.current.focus() } catch {}
+    }
+  }, [error])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -232,11 +239,17 @@ export default function SignInPage() {
             <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-purple-400 to-transparent" />
 
             {error && (
-              <div className="mb-5 p-4 rounded-2xl border border-red-400/30 text-red-300 text-sm"
-                   style={{
-                     background: 'rgba(220, 38, 38, 0.1)',
-                     backdropFilter: 'blur(10px)'
-                   }}>
+              <div
+                ref={errorRef}
+                tabIndex={-1}
+                role="alert"
+                aria-live="polite"
+                className="mb-5 p-4 rounded-2xl border border-red-400/30 text-red-300 text-sm"
+                style={{
+                  background: 'rgba(220, 38, 38, 0.1)',
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
                 <div className="flex items-start gap-3">
                   <span className="text-xl shrink-0">⚠️</span>
                   <span className="leading-relaxed">{error}</span>

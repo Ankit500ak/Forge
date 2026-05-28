@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
+import http from 'http';
+import { WebSocketServer } from 'ws';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import ranksRoutes from './routes/ranks.js';
@@ -8,6 +10,7 @@ import taskRoutes from './routes/tasks.js';
 import debugRoutes from './routes/debug.js';
 import foodRoutes from './routes/food.js';
 import cameraRoutes from './routes/camera.js';
+import foodDetectionService from './services/foodDetectionService.js';
 import { initXpRolloverService, triggerRollover } from './services/xpRollover.js';
 import { initializeTaskScheduler } from './services/taskScheduler.js';
 import { runMigrations } from './migrations.js';
@@ -22,6 +25,7 @@ console.log('🔗 POSTGRES_URL:', process.env.POSTGRES_URL ? process.env.POSTGRE
 console.log('═════════════════════════════════════════════════════════════════════════════');
 
 const app = express();
+const server = http.createServer(app);
 
 // Initialize database pool for services
 const pool = new Pool({
@@ -119,6 +123,81 @@ console.log('[Server] Mounting camera routes on /api/camera');
 app.use('/api/camera', cameraRoutes);
 
 // ════════════════════════════════════════════════════════════════════════════
+// WebSocket food streaming (lower-latency realtime detection)
+// Client sends binary image frames and receives JSON detection results.
+// ════════════════════════════════════════════════════════════════════════════
+const foodStreamWss = new WebSocketServer({ server, path: '/api/food/stream' });
+
+const normalizeFoodResult = (result) => {
+  if (result && result.status === 'success' && result.nutrition) {
+    return {
+      ...result,
+      food_name: result.nutrition.name || result.detected_food || null,
+      calories: result.nutrition.calories || null,
+      protein: result.nutrition.protein || null,
+      carbs: result.nutrition.carbs || null,
+      fat: result.nutrition.fat || null,
+    };
+  }
+
+  return result;
+};
+
+foodStreamWss.on('connection', (socket, req) => {
+  const requestUrl = new URL(req.url || '/api/food/stream', 'http://localhost');
+  const confidenceThreshold = Math.min(Math.max(parseFloat(requestUrl.searchParams.get('threshold') || '0.3') || 0.3, 0), 1);
+  let busy = false;
+
+  socket.send(JSON.stringify({
+    type: 'ready',
+    message: 'Food detection stream ready',
+    confidenceThreshold
+  }));
+
+  socket.on('message', async (data, isBinary) => {
+    if (!isBinary) {
+      try {
+        const parsed = JSON.parse(data.toString());
+        if (parsed?.type === 'ping') {
+          socket.send(JSON.stringify({ type: 'pong', ts: Date.now() }));
+          return;
+        }
+      } catch {
+        // Ignore non-JSON control messages
+      }
+      return;
+    }
+
+    if (busy) {
+      socket.send(JSON.stringify({ type: 'busy', message: 'Previous frame still processing' }));
+      return;
+    }
+
+    busy = true;
+    try {
+      const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      const result = await foodDetectionService.detectFoodFromBuffer(buffer, confidenceThreshold);
+      socket.send(JSON.stringify({
+        type: 'detection',
+        ...normalizeFoodResult(result)
+      }));
+    } catch (error) {
+      socket.send(JSON.stringify({
+        type: 'error',
+        status: 'error',
+        error: error?.message || String(error)
+      }));
+    } finally {
+      busy = false;
+    }
+  });
+
+  socket.on('close', () => {
+    busy = false;
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 // Admin endpoints for task scheduler (DAILY RESET AT 12 PM)
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -176,8 +255,9 @@ app.get('/', (req, res) => {
 const PORT = process.env.PORT || 5000;
 // Bind to 0.0.0.0 so the server is reachable from other machines on the LAN
 const HOST = process.env.HOST || '0.0.0.0';
-app.listen(PORT, HOST, () => {
+server.listen(PORT, HOST, () => {
   console.log('═════════════════════════════════════════════════════════════════════════════');
   console.log(`🚀 Server running on http://${HOST}:${PORT}`);
+  console.log(`🛰️  WebSocket food stream ready at ws://${HOST}:${PORT}/api/food/stream`);
   console.log('═════════════════════════════════════════════════════════════════════════════');
 });

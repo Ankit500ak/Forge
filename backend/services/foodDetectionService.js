@@ -145,6 +145,40 @@ class FoodDetectionService {
     }
 
     /**
+     * Detect food from an in-memory image buffer.
+     * Writes a temporary file, reuses the existing detection pipeline, then cleans up.
+     * @param {Buffer} imageBuffer
+     * @param {number} confidenceThreshold
+     * @param {string} mimeType
+     * @returns {Promise<Object>}
+     */
+    async detectFoodFromBuffer(imageBuffer, confidenceThreshold = 0.3, mimeType = 'image/jpeg') {
+        const extensionMap = {
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/png': '.png',
+            'image/webp': '.webp'
+        };
+
+        const extension = extensionMap[mimeType] || '.jpg';
+        const tempFileName = `stream-${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
+        const tempFilePath = path.join(this.uploadDir, tempFileName);
+
+        try {
+            fs.writeFileSync(tempFilePath, imageBuffer);
+            return await this.detectFood(tempFilePath, confidenceThreshold);
+        } finally {
+            try {
+                if (fs.existsSync(tempFilePath)) {
+                    fs.unlinkSync(tempFilePath);
+                }
+            } catch (cleanupError) {
+                console.warn('Could not clean up temp food image:', cleanupError.message);
+            }
+        }
+    }
+
+    /**
      * Get nutrition information for a food
      * @param {string} foodName - Name of the food
      * @returns {Promise<Object>} - Nutrition information
