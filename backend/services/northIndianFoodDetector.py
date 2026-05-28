@@ -5,7 +5,13 @@ Uses transfer learning to detect and classify North Indian foods
 Includes nutrition information for detected foods
 """
 
-import numpy as np
+try:
+    import numpy as np
+    _HAS_NUMPY = True
+except ImportError:
+    np = None
+    _HAS_NUMPY = False
+    print("⚠️ NumPy not available. Install backend requirements to enable full detection.", file=sys.stderr)
 import json
 import sys
 from pathlib import Path
@@ -19,16 +25,19 @@ try:
     from tensorflow.keras.preprocessing import image
     from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout
     from tensorflow.keras.models import Sequential, load_model
+    _HAS_TF = True
     print("✓ TensorFlow loaded successfully", file=sys.stderr)
 except ImportError:
-    print("⚠️ TensorFlow not available, installing...", file=sys.stderr)
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "tensorflow", "-q"])
-    import tensorflow as tf
-    from tensorflow.keras.applications import MobileNetV2
-    from tensorflow.keras.preprocessing import image
-    from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout
-    from tensorflow.keras.models import Sequential, load_model
+    tf = None
+    MobileNetV2 = None
+    image = None
+    Dense = None
+    GlobalAveragePooling2D = None
+    Dropout = None
+    Sequential = None
+    load_model = None
+    _HAS_TF = False
+    print("⚠️ TensorFlow not available. Install backend requirements to enable classifier fallback.", file=sys.stderr)
 
 # Try to import ultralytics YOLO support (optional). If not present, we'll fall back to TF classifier.
 try:
@@ -285,10 +294,8 @@ class NorthIndianFoodDetector:
         self.food_classes = list(self.NORTH_INDIAN_FOODS.keys())
         self.num_classes = len(self.food_classes)
         
-        if model_path and Path(model_path).exists():
+        if model_path and Path(model_path).exists() and _HAS_TF:
             self.load_model(model_path)
-        else:
-            self.create_model()
 
         # Attempt to load YOLO model if available in ml_models/yolo_food.pt
         try:
@@ -311,6 +318,11 @@ class NorthIndianFoodDetector:
     def create_model(self):
         """Create a transfer learning model using MobileNetV2"""
         print("🏗️ Creating transfer learning model...", file=sys.stderr)
+
+        if not _HAS_TF:
+            raise RuntimeError("TensorFlow is not installed. Run: pip install -r backend/requirements.txt")
+        if not _HAS_NUMPY:
+            raise RuntimeError("NumPy is not installed. Run: pip install -r backend/requirements.txt")
         
         try:
             # Load pre-trained MobileNetV2 (trained on ImageNet)
@@ -360,9 +372,12 @@ class NorthIndianFoodDetector:
             self.model.save(model_path)
             print(f"✓ Model saved to {model_path}", file=sys.stderr)
     
-    def preprocess_image(self, image_path: str) -> np.ndarray:
+    def preprocess_image(self, image_path: str):
         """Preprocess image for model input"""
         try:
+            if not _HAS_NUMPY:
+                raise RuntimeError("NumPy is required for TensorFlow classifier preprocessing")
+
             # Load image
             img = image.load_img(image_path, target_size=(224, 224))
             
@@ -481,10 +496,17 @@ class NorthIndianFoodDetector:
 
             # Fallback classifier (MobileNet transfer learning)
             if not self.model:
-                return {
-                    'error': 'Model not loaded',
-                    'status': 'failed'
-                }
+                if not _HAS_TF:
+                    return {
+                        'error': 'Model not loaded: TensorFlow missing and YOLO unavailable',
+                        'status': 'failed'
+                    }
+                if not _HAS_NUMPY:
+                    return {
+                        'error': 'Model not loaded: NumPy missing and YOLO unavailable',
+                        'status': 'failed'
+                    }
+                self.create_model()
 
             # Preprocess image
             img_array = self.preprocess_image(image_path)
@@ -543,8 +565,14 @@ class NorthIndianFoodDetector:
                 'error': str(e)
             }
     
-    def _get_top_prediction(self, predictions: np.ndarray) -> Dict:
+    def _get_top_prediction(self, predictions) -> Dict:
         """Get top prediction details"""
+        if not _HAS_NUMPY:
+            return {
+                'food': None,
+                'confidence': 0.0,
+                'probability': '0.00%'
+            }
         top_idx = np.argmax(predictions)
         top_food = self.food_classes[top_idx]
         top_confidence = float(predictions[top_idx])
@@ -599,6 +627,15 @@ def main():
         sys.exit(1)
     
     command = sys.argv[1]
+
+    if command == '--list-foods':
+        result = {
+            'status': 'success',
+            'total_foods': len(NorthIndianFoodDetector.NORTH_INDIAN_FOODS),
+            'foods': NorthIndianFoodDetector.NORTH_INDIAN_FOODS
+        }
+        print(json.dumps(result, indent=2))
+        return
     
     # Initialize detector
     backend_dir = Path(__file__).parent.parent
@@ -607,15 +644,11 @@ def main():
     
     detector = NorthIndianFoodDetector(str(model_path) if model_path.exists() else None)
     
-    if command == '--list-foods':
-        result = detector.get_all_foods()
-        print(json.dumps(result, indent=2))
-    else:
-        image_path = command
-        confidence_threshold = float(sys.argv[2]) if len(sys.argv) > 2 else 0.3
-        
-        result = detector.detect_food(image_path, confidence_threshold)
-        print(json.dumps(result, indent=2))
+    image_path = command
+    confidence_threshold = float(sys.argv[2]) if len(sys.argv) > 2 else 0.3
+
+    result = detector.detect_food(image_path, confidence_threshold)
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == '__main__':

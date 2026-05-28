@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useAuth } from '@/lib/auth-context'
 import { useRouter } from 'next/navigation'
@@ -24,7 +24,6 @@ type DetectionResult = {
 	error?: string
 	all_predictions?: DetectionPrediction[]
 }
-
 type CalorieLog = {
 	id: string
 	food: string
@@ -181,7 +180,11 @@ export default function CalorieDetectorPage() {
 	const [mounted, setMounted] = useState(false)
 	const [cameraActive, setCameraActive] = useState(false)
 	const [videoReady, setVideoReady] = useState(false)
+	const [playBlocked, setPlayBlocked] = useState(false)
 	const [loading, setLoading] = useState(false)
+	const [gmStatus, setGmStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'error'>('idle')
+	const [lastError, setLastError] = useState<string | null>(null)
+	const [videoDims, setVideoDims] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
 	const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null)
 	const [realtimeMode, setRealtimeMode] = useState(false)
 	const [streamConnected, setStreamConnected] = useState(false)
@@ -191,6 +194,7 @@ export default function CalorieDetectorPage() {
 	const [calorieGoal, setCalorieGoal] = useState(CALORIE_GOAL)
 	const [goalDraft, setGoalDraft] = useState(String(CALORIE_GOAL))
 	const [editingGoal, setEditingGoal] = useState(false)
+	const [debugMode, setDebugMode] = useState(false)
 
 	const videoRef = useRef<HTMLVideoElement>(null)
 	const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -202,11 +206,47 @@ export default function CalorieDetectorPage() {
 	const reconnectTimerRef = useRef<number | null>(null)
 	const streamTimerRef = useRef<number | null>(null)
 
+	const [guestMode] = useState(true)
+
 	useEffect(() => {
 		setMounted(true)
-		if (!user) router.push('/')
-	}, [user, router])
+	}, [])
 
+	// 🔍 Check secure context and camera permission state
+	useEffect(() => {
+		if (typeof window !== 'undefined') {
+			if (!window.isSecureContext) {
+				setLastError('⚠️ HTTPS required. Camera access blocked. Use HTTPS or localhost.')
+			}
+
+			// Check mediaDevices support
+			if (!navigator.mediaDevices?.getUserMedia) {
+				setLastError('❌ Camera API not supported in this browser.')
+				return
+			}
+		}
+
+		// Query camera permission status
+		if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
+			navigator.permissions
+				.query({ name: 'camera' as PermissionName })
+				.then((p: PermissionStatus) => {
+					setGmStatus(
+						p.state === 'granted' ? 'granted' : p.state === 'denied' ? 'denied' : 'idle'
+					)
+					p.addEventListener('change', () => {
+						setGmStatus(
+							p.state === 'granted' ? 'granted' : p.state === 'denied' ? 'denied' : 'idle'
+						)
+					})
+				})
+				.catch((err) => {
+					console.warn('Permission query failed:', err)
+				})
+		}
+	}, [])
+
+	// 🧹 Cleanup on unmount
 	useEffect(() => {
 		return () => {
 			streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -219,8 +259,13 @@ export default function CalorieDetectorPage() {
 	const wsUrl = useMemo(() => {
 		const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 		const base = api.replace(/\/api\/?$/, '')
-		if (base.startsWith('https://')) return `${base.replace(/^https:/, 'wss:')}/api/food/stream?threshold=0.3`
-		if (base.startsWith('http://')) return `${base.replace(/^http:/, 'ws:')}/api/food/stream?threshold=0.3`
+
+		if (base.startsWith('https://')) {
+			return `${base.replace(/^https:/, 'wss:')}/api/food/stream?threshold=0.3`
+		}
+		if (base.startsWith('http://')) {
+			return `${base.replace(/^http:/, 'ws:')}/api/food/stream?threshold=0.3`
+		}
 		if (typeof window !== 'undefined') {
 			const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
 			return `${protocol}//${window.location.host}/api/food/stream?threshold=0.3`
@@ -228,50 +273,82 @@ export default function CalorieDetectorPage() {
 		return 'ws://localhost:5000/api/food/stream?threshold=0.3'
 	}, [])
 
+	// ✅ Get frame blob with proper error handling
 	const getFrameBlob = async (quality = 0.84): Promise<Blob | null> => {
 		const video = videoRef.current
 		const canvas = canvasRef.current
-		if (!video || !canvas) return null
-		if (!video.videoWidth || !video.videoHeight) return null
 
-		const context = canvas.getContext('2d')
-		if (!context) return null
-
-		canvas.width = video.videoWidth
-		canvas.height = video.videoHeight
-		context.drawImage(video, 0, 0)
-
-		return new Promise((resolve) => {
-			canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality)
-		})
-	}
-
-	const waitForVideoReady = async () => {
-		const video = videoRef.current
-		if (!video) return false
-
-		if (video.videoWidth > 0 && video.videoHeight > 0) {
-			setVideoReady(true)
-			return true
+		if (!video) {
+			console.error('❌ Video ref not available')
+			return null
 		}
 
+		if (!canvas) {
+			console.error('❌ Canvas ref not available')
+			return null
+		}
+
+		if (!video.videoWidth || !video.videoHeight) {
+			console.error('❌ Video dimensions invalid:', video.videoWidth, video.videoHeight)
+			return null
+		}
+
+		const context = canvas.getContext('2d')
+		if (!context) {
+			console.error('❌ Canvas context 2d not available')
+			return null
+		}
+
+		try {
+			canvas.width = video.videoWidth
+			canvas.height = video.videoHeight
+			context.drawImage(video, 0, 0)
+
+			return new Promise((resolve) => {
+				canvas.toBlob(
+					(blob) => {
+						if (!blob) {
+							console.error('❌ toBlob returned null')
+							resolve(null)
+						} else {
+							console.log('✅ Frame blob created:', blob.size, 'bytes')
+							resolve(blob)
+						}
+					},
+					'image/jpeg',
+					quality
+				)
+			})
+		} catch (error) {
+			console.error('❌ Error capturing frame:', error)
+			return null
+		}
+	}
+
+	// ✅ Wait for video to be ready with proper timeout
+	const waitForVideoReady = async (): Promise<boolean> => {
 		return new Promise<boolean>((resolve) => {
 			const startedAt = Date.now()
-			const timeoutMs = 5000
+			const timeoutMs = 7000
 
 			const tick = () => {
-				if (!videoRef.current) {
+				const video = videoRef.current
+
+				if (!cameraActive && Date.now() - startedAt > 600) {
+					console.error('❌ Camera is not active while waiting for video readiness')
 					resolve(false)
 					return
 				}
 
-				if (videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
+				if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+					console.log('✅ Video ready:', video.videoWidth, 'x', video.videoHeight)
 					setVideoReady(true)
 					resolve(true)
 					return
 				}
 
 				if (Date.now() - startedAt > timeoutMs) {
+					console.error('❌ Video ready timeout')
 					resolve(false)
 					return
 				}
@@ -283,6 +360,7 @@ export default function CalorieDetectorPage() {
 		})
 	}
 
+	// ✅ Map predictions to bounding boxes
 	const mapBoxes = (predictions?: DetectionResult['all_predictions']) => {
 		const video = videoRef.current
 		if (!video || !predictions?.length) {
@@ -317,14 +395,25 @@ export default function CalorieDetectorPage() {
 		if (result.all_predictions) mapBoxes(result.all_predictions)
 	}
 
+	// ✅ Capture and detect with comprehensive error handling
 	const captureAndDetect = async () => {
 		setLoading(true)
+		setLastError(null)
+
 		try {
+			console.log('🎬 Starting capture and detect...')
+
 			const ready = await waitForVideoReady()
-			if (!ready) throw new Error('Camera frame not ready')
+			if (!ready) {
+				throw new Error('Video frame not ready. Try clicking "Tap to enable camera" or waiting a moment.')
+			}
 
 			const blob = await getFrameBlob()
-			if (!blob) throw new Error('Camera frame not ready')
+			if (!blob) {
+				throw new Error('Failed to capture frame from camera.')
+			}
+
+			console.log('📤 Uploading frame to API...')
 
 			const formData = new FormData()
 			formData.append('image', blob, 'frame.jpg')
@@ -333,11 +422,15 @@ export default function CalorieDetectorPage() {
 				headers: { 'Content-Type': 'multipart/form-data' },
 			})
 
+			console.log('✅ Detection successful:', response.data)
 			applyDetection(response.data)
 		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : 'Detection failed. Check console for details.'
+			console.error('❌ Capture failed:', error)
+			setLastError(errorMessage)
 			setDetectionResult({
 				status: 'error',
-				error: error instanceof Error ? error.message : 'Detection failed',
+				error: errorMessage,
 			})
 			setBoxes([])
 		} finally {
@@ -345,12 +438,17 @@ export default function CalorieDetectorPage() {
 		}
 	}
 
+	// ✅ File upload with proper error handling
 	const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0]
 		if (!file) return
 
 		setLoading(true)
+		setLastError(null)
+
 		try {
+			console.log('📤 Uploading file:', file.name, file.size, 'bytes')
+
 			const formData = new FormData()
 			formData.append('image', file)
 
@@ -358,77 +456,205 @@ export default function CalorieDetectorPage() {
 				headers: { 'Content-Type': 'multipart/form-data' },
 			})
 
+			console.log('✅ Upload detection successful:', response.data)
 			applyDetection(response.data)
 		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : 'Upload detection failed. Check console for details.'
+			console.error('❌ Upload failed:', error)
+			setLastError(errorMessage)
 			setDetectionResult({
 				status: 'error',
-				error: error instanceof Error ? error.message : 'Upload detection failed',
+				error: errorMessage,
 			})
 			setBoxes([])
 		} finally {
 			setLoading(false)
-			event.target.value = ''
+			// ✅ Properly reset file input
+			if (fileInputRef.current) {
+				fileInputRef.current.value = ''
+			}
 		}
 	}
 
+	// ✅ Start camera with flexible constraints
 	const startCamera = async () => {
 		try {
+			setGmStatus('requesting')
 			setVideoReady(false)
-			const stream = await navigator.mediaDevices.getUserMedia({
+			setLastError(null)
+			console.log('📷 Requesting camera access...')
+
+			// Progressive constraint fallback
+			const constraints = {
 				video: {
 					facingMode: 'environment',
-					width: { ideal: 1920 },
-					height: { ideal: 1080 },
+					width: { ideal: 1280, max: 1920 },
+					height: { ideal: 720, max: 1080 },
 				},
-			})
+				audio: false,
+			}
+
+			const stream = await navigator.mediaDevices.getUserMedia(constraints)
+			console.log('✅ Camera stream obtained')
 
 			streamRef.current = stream
-			if (videoRef.current) {
-				videoRef.current.srcObject = stream
-				await videoRef.current.play().catch(() => {})
-			}
 			setCameraActive(true)
+			setGmStatus('granted')
+
+			// Let React mount the conditional <video /> first.
+			await new Promise<void>((resolve) => {
+				window.requestAnimationFrame(() => resolve())
+			})
+
+			const video = videoRef.current
+			if (!video) {
+				throw new Error('Video element did not mount after enabling camera')
+			}
+
+			video.srcObject = stream
+
+			// Handle autoplay with proper error handling
+			try {
+				video.muted = true
+				setPlayBlocked(false)
+				await video.play()
+				console.log('✅ Video playback started')
+			} catch (err) {
+				console.warn('⚠️ Autoplay blocked, user gesture required:', err)
+				setPlayBlocked(true)
+				setLastError('Tap the camera preview to start playback')
+			}
+
 			void waitForVideoReady()
 		} catch (error) {
-			console.error(error)
-			alert('Camera access denied or unavailable.')
+			const errorMessage = error instanceof Error ? error.message : 'Camera access denied'
+			console.error('❌ Camera error:', error)
+			setGmStatus(errorMessage.toLowerCase().includes('denied') ? 'denied' : 'error')
+			setLastError(`Camera error: ${errorMessage}. Make sure you:\n1. Granted camera permission\n2. Using HTTPS (or localhost)\n3. Device has a camera`)
+			setCameraActive(false)
 		}
 	}
 
+	// ✅ Video event listeners for diagnostics
+	useEffect(() => {
+		if (!cameraActive) return
+		const video = videoRef.current
+		if (!video) return
+
+		const onLoaded = () => {
+			setVideoDims({ w: video.videoWidth || 0, h: video.videoHeight || 0 })
+			console.log('📊 Video loadedmetadata:', video.videoWidth, 'x', video.videoHeight)
+		}
+
+		const onCanPlay = () => {
+			setVideoDims({ w: video.videoWidth || 0, h: video.videoHeight || 0 })
+			setVideoReady(true)
+			console.log('✅ Video canplay')
+		}
+
+		const onPlaying = () => {
+			setVideoDims({ w: video.videoWidth || 0, h: video.videoHeight || 0 })
+			setVideoReady(true)
+			setPlayBlocked(false)
+			console.log('✅ Video playing')
+		}
+
+		const onError = (ev: any) => {
+			console.error('❌ Video element error:', ev)
+			setLastError('Video element error: ' + ev.target.error?.message)
+		}
+
+		video.addEventListener('loadedmetadata', onLoaded)
+		video.addEventListener('canplay', onCanPlay)
+		video.addEventListener('playing', onPlaying)
+		video.addEventListener('error', onError)
+
+		return () => {
+			video.removeEventListener('loadedmetadata', onLoaded)
+			video.removeEventListener('canplay', onCanPlay)
+			video.removeEventListener('playing', onPlaying)
+			video.removeEventListener('error', onError)
+		}
+	}, [cameraActive])
+
 	const stopCamera = () => {
-		streamRef.current?.getTracks().forEach((track) => track.stop())
+		console.log('🛑 Stopping camera...')
+		if (videoRef.current) {
+			videoRef.current.pause()
+			videoRef.current.srcObject = null
+		}
+		streamRef.current?.getTracks().forEach((track) => {
+			track.stop()
+			console.log('✅ Track stopped:', track.label)
+		})
 		streamRef.current = null
 		setCameraActive(false)
 		stopStream()
+		setPlayBlocked(false)
+		setVideoReady(false)
 	}
 
+	// ✅ Attempt play after user gesture
+	const attemptPlay = async () => {
+		if (!videoRef.current) return
+		try {
+			console.log('▶️ Attempting play after user gesture...')
+			videoRef.current.muted = true
+			await videoRef.current.play()
+			setPlayBlocked(false)
+			void waitForVideoReady()
+			console.log('✅ Play successful')
+		} catch (err) {
+			console.warn('⚠️ Play still blocked:', err)
+			setPlayBlocked(true)
+		}
+	}
+
+	// ✅ WebSocket stream functions with robust error handling
 	const connectStream = () => {
 		if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+			console.log('⚡ WebSocket already connecting/connected')
 			return
 		}
+
+		console.log('🔗 Connecting WebSocket to:', wsUrl)
 
 		const socket = new WebSocket(wsUrl)
 		socket.binaryType = 'arraybuffer'
 
-		socket.onopen = () => setStreamConnected(true)
+		socket.onopen = () => {
+			console.log('✅ WebSocket connected')
+			setStreamConnected(true)
+		}
+
 		socket.onclose = () => {
+			console.log('🔌 WebSocket closed')
 			setStreamConnected(false)
 			streamBusyRef.current = false
 			if (streamModeRef.current) {
 				reconnectTimerRef.current = window.setTimeout(() => {
-					if (streamModeRef.current) connectStream()
+					if (streamModeRef.current) {
+						console.log('🔄 Attempting reconnect...')
+						connectStream()
+					}
 				}, 600)
 			}
 		}
-		socket.onerror = () => {
+
+		socket.onerror = (ev) => {
+			console.error('❌ WebSocket error:', ev)
 			setStreamConnected(false)
 			streamBusyRef.current = false
 		}
+
 		socket.onmessage = (event) => {
 			try {
-				const payload = JSON.parse(typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data))
+				const payload = JSON.parse(
+					typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data as ArrayBuffer)
+				)
 
 				if (payload?.type === 'ready') {
+					console.log('✅ Stream ready')
 					setStreamConnected(true)
 					return
 				}
@@ -439,12 +665,14 @@ export default function CalorieDetectorPage() {
 				}
 
 				if (payload?.type === 'detection') {
+					console.log('🎯 Stream detection:', payload)
 					applyDetection(payload)
 					streamBusyRef.current = false
 					return
 				}
 
 				if (payload?.type === 'error') {
+					console.error('❌ Stream error:', payload.error)
 					setDetectionResult({
 						status: 'error',
 						error: payload.error || 'Realtime detection failed',
@@ -452,7 +680,7 @@ export default function CalorieDetectorPage() {
 					streamBusyRef.current = false
 				}
 			} catch (error) {
-				console.warn('Could not parse stream message', error)
+				console.warn('⚠️ Could not parse stream message:', error)
 				streamBusyRef.current = false
 			}
 		}
@@ -462,7 +690,10 @@ export default function CalorieDetectorPage() {
 
 	const sendStreamFrame = async () => {
 		const socket = wsRef.current
-		if (!streamModeRef.current || !cameraActive || !socket || socket.readyState !== WebSocket.OPEN || streamBusyRef.current) return
+		if (!streamModeRef.current || !cameraActive || !socket || socket.readyState !== WebSocket.OPEN || streamBusyRef.current) {
+			return
+		}
+
 		if (!videoReady) {
 			const ready = await waitForVideoReady()
 			if (!ready) return
@@ -476,6 +707,7 @@ export default function CalorieDetectorPage() {
 	}
 
 	const startStream = () => {
+		console.log('🎬 Starting stream mode...')
 		streamModeRef.current = true
 		connectStream()
 		if (streamTimerRef.current) window.clearInterval(streamTimerRef.current)
@@ -485,6 +717,7 @@ export default function CalorieDetectorPage() {
 	}
 
 	const stopStream = () => {
+		console.log('🛑 Stopping stream mode...')
 		streamModeRef.current = false
 		streamBusyRef.current = false
 		if (streamTimerRef.current) {
@@ -503,6 +736,7 @@ export default function CalorieDetectorPage() {
 		setRealtimeMode(false)
 	}
 
+	// ✅ Daily log management
 	const addToLog = () => {
 		if (!detectionResult || detectionResult.status !== 'success') return
 
@@ -516,6 +750,7 @@ export default function CalorieDetectorPage() {
 			time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
 		}
 
+		console.log('📝 Adding to log:', entry)
 		setDailyLogs((prev) => [entry, ...prev])
 		setTotalCalories((prev) => prev + entry.calories)
 		setDetectionResult(null)
@@ -525,7 +760,10 @@ export default function CalorieDetectorPage() {
 	const deleteLog = (id: string) => {
 		setDailyLogs((prev) => {
 			const removed = prev.find((item) => item.id === id)
-			if (removed) setTotalCalories((current) => current - removed.calories)
+			if (removed) {
+				console.log('🗑️ Removing from log:', removed.food)
+				setTotalCalories((current) => current - removed.calories)
+			}
 			return prev.filter((item) => item.id !== id)
 		})
 	}
@@ -546,12 +784,14 @@ export default function CalorieDetectorPage() {
 	const saveGoal = () => {
 		const nextGoal = parseInt(goalDraft, 10)
 		if (!Number.isNaN(nextGoal) && nextGoal > 0) {
+			console.log('🎯 Calorie goal updated to:', nextGoal)
 			setCalorieGoal(nextGoal)
 		}
 		setEditingGoal(false)
 	}
 
-	if (!mounted || !user) return null
+	if (!mounted) return null
+	if (!user && !guestMode) return null
 
 	return (
 		<div className="min-h-screen pb-28 text-white" style={{ background: ACCENT.bg }}>
@@ -587,12 +827,33 @@ export default function CalorieDetectorPage() {
 						>
 							Upload
 						</button>
-						<input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+						<input
+							ref={fileInputRef}
+							type="file"
+							accept="image/*"
+							onChange={handleFileUpload}
+							className="hidden"
+							disabled={loading}
+						/>
+						<button
+							onClick={() => setDebugMode(!debugMode)}
+							className="rounded-full border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10"
+							title="Toggle debug mode"
+						>
+							{debugMode ? '🔍' : '•'}
+						</button>
 					</div>
 				</div>
 			</header>
 
 			<main className="mx-auto max-w-6xl px-4 pt-5 sm:px-6 lg:px-8">
+				{/* ✅ Error banner */}
+				{lastError && (
+					<div className="mb-4 rounded-[1.4rem] border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-200 whitespace-pre-wrap">
+						{lastError}
+					</div>
+				)}
+
 				<section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
 					<div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-6">
 						<div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(34,211,238,0.12),transparent_38%,rgba(244,114,182,0.08))]" />
@@ -608,7 +869,9 @@ export default function CalorieDetectorPage() {
 								</p>
 
 								<div className="mt-5 flex flex-wrap gap-2">
-									<span className="rounded-full border border-cyan-400/15 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-200">{dailyLogs.length} meals</span>
+									<span className="rounded-full border border-cyan-400/15 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-200">
+										{dailyLogs.length} meals
+									</span>
 									<span className="rounded-full border border-fuchsia-400/15 bg-fuchsia-400/10 px-3 py-1 text-xs font-semibold text-fuchsia-200">
 										{realtimeMode ? 'Realtime enabled' : 'One-shot scan'}
 									</span>
@@ -625,9 +888,24 @@ export default function CalorieDetectorPage() {
 					</div>
 
 					<div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
-						<StatTile label="Goal progress" value={`${calorieProgress}%`} accent={ACCENT.calories} detail={`Target: ${calorieGoal.toLocaleString()} kcal`} />
-						<StatTile label="Stream" value={streamConnected ? 'Online' : 'Off'} accent={ACCENT.success} detail={realtimeMode ? 'Low-latency mode active' : 'Manual capture mode'} />
-						<StatTile label="Mood" value={cameraActive ? 'Scanning' : 'Ready'} accent={ACCENT.cyan} detail="One-hand mobile controls" />
+						<StatTile
+							label="Goal progress"
+							value={`${calorieProgress}%`}
+							accent={ACCENT.calories}
+							detail={`Target: ${calorieGoal.toLocaleString()} kcal`}
+						/>
+						<StatTile
+							label="Stream"
+							value={streamConnected ? 'Online' : 'Off'}
+							accent={ACCENT.success}
+							detail={realtimeMode ? 'Low-latency mode active' : 'Manual capture mode'}
+						/>
+						<StatTile
+							label="Mood"
+							value={cameraActive ? 'Scanning' : 'Ready'}
+							accent={ACCENT.cyan}
+							detail="One-hand mobile controls"
+						/>
 					</div>
 				</section>
 
@@ -639,50 +917,105 @@ export default function CalorieDetectorPage() {
 						/>
 
 						{!cameraActive ? (
-							<div className="grid gap-3 sm:grid-cols-2">
-								<button
-									onClick={startCamera}
-									className="rounded-[1.5rem] border border-cyan-400/20 bg-gradient-to-r from-cyan-500 to-blue-600 p-5 text-left shadow-lg shadow-cyan-500/20 transition hover:-translate-y-0.5"
-								>
-									<p className="text-xs font-semibold text-white/80">Step 1</p>
-									<p className="mt-1 text-xl font-black tracking-tight text-white">Open camera</p>
-									<p className="mt-2 text-sm text-white/70">Use your back camera for the cleanest food detection shot.</p>
-								</button>
+							<>
+								<div className="grid gap-3 sm:grid-cols-2">
+									<button
+										onClick={startCamera}
+										className="rounded-[1.5rem] border border-cyan-400/20 bg-gradient-to-r from-cyan-500 to-blue-600 p-5 text-left shadow-lg shadow-cyan-500/20 transition hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
+										disabled={loading}
+									>
+										<p className="text-xs font-semibold text-white/80">Step 1</p>
+										<p className="mt-1 text-xl font-black tracking-tight text-white">Open camera</p>
+										<p className="mt-2 text-sm text-white/70">
+											Use your back camera for the cleanest food detection shot.
+										</p>
+									</button>
 
-								<button
-									onClick={() => fileInputRef.current?.click()}
-									className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5 text-left transition hover:bg-white/8"
-								>
-									<p className="text-xs font-semibold text-zinc-400">Step 2</p>
-									<p className="mt-1 text-xl font-black tracking-tight text-white">Upload photo</p>
-									<p className="mt-2 text-sm text-zinc-400">Fast path for images already saved in your gallery.</p>
-								</button>
-							</div>
+									<button
+										onClick={() => fileInputRef.current?.click()}
+										className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5 text-left transition hover:bg-white/8 disabled:opacity-60 disabled:cursor-not-allowed"
+										disabled={loading}
+									>
+										<p className="text-xs font-semibold text-zinc-400">Step 2</p>
+										<p className="mt-1 text-xl font-black tracking-tight text-white">Upload photo</p>
+										<p className="mt-2 text-sm text-zinc-400">
+											Fast path for images already saved in your gallery.
+										</p>
+									</button>
+								</div>
+							</>
 						) : (
 							<div className="space-y-4">
 								<div className="relative overflow-hidden rounded-[1.8rem] border border-white/10 bg-black shadow-2xl shadow-black/40" style={{ aspectRatio: '16/11' }}>
-									<video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
+									<video
+										ref={videoRef}
+										autoPlay
+										playsInline
+										muted
+										className="h-full w-full object-cover"
+									/>
+
+									{/* ✅ Debug overlay */}
+									{debugMode && (
+										<div className="absolute right-4 top-4 z-30 rounded-md bg-black/80 px-3 py-2 text-xs text-white font-mono">
+											<div>🔐 HTTPS: {window.isSecureContext ? '✅' : '❌'}</div>
+											<div>📱 Permission: {gmStatus}</div>
+											<div>🎥 Video: {videoDims.w}×{videoDims.h}</div>
+											<div>⚡ Ready: {videoReady ? '✅' : '⏳'}</div>
+											<div>▶️ Blocked: {playBlocked ? '⚠️' : '✅'}</div>
+											<div>🔗 WS: {streamConnected ? '🟢' : '🔴'}</div>
+											{lastError && <div className="mt-1 text-rose-300">⚠️ Error present</div>}
+											<div className="break-words text-[10px] text-zinc-400 mt-2">{wsUrl.slice(0, 40)}...</div>
+										</div>
+									)}
+
+									{playBlocked && (
+										<div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50">
+											<button
+												onClick={attemptPlay}
+												className="rounded-2xl bg-emerald-500 px-6 py-3 font-black text-white shadow-lg hover:bg-emerald-600"
+											>
+												Tap to enable camera
+											</button>
+										</div>
+									)}
 
 									<div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.28))]" />
 
 									<div className="absolute left-4 top-4 flex gap-2">
-										<span className="rounded-full bg-black/60 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">Camera on</span>
+										<span className="rounded-full bg-black/60 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
+											Camera on
+										</span>
 										{streamConnected ? (
-											<span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-200 backdrop-blur">Live stream</span>
+											<span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-200 backdrop-blur">
+												Live stream
+											</span>
 										) : (
-											<span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/80 backdrop-blur">Connecting...</span>
+											<span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/80 backdrop-blur">
+												{realtimeMode ? 'Connecting...' : 'Ready'}
+											</span>
 										)}
 									</div>
 
 									{boxes.length > 0 && (
 										<div className="pointer-events-none absolute inset-0">
 											{boxes.map((box, index) => (
-												<div key={index} className="absolute" style={{ left: box.left, top: box.top, width: box.width, height: box.height }}>
+												<div
+													key={index}
+													className="absolute"
+													style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
+												>
 													<div
 														className="absolute inset-0 rounded-2xl border-2"
-														style={{ borderColor: ACCENT.cyan, boxShadow: '0 0 0 1px rgba(34,211,238,0.25), 0 0 24px rgba(34,211,238,0.20)' }}
+														style={{
+															borderColor: ACCENT.cyan,
+															boxShadow: '0 0 0 1px rgba(34,211,238,0.25), 0 0 24px rgba(34,211,238,0.20)',
+														}}
 													/>
-													<div className="absolute -top-8 left-0 rounded-full px-2.5 py-1 text-[11px] font-bold text-[#04111a] shadow-lg" style={{ background: ACCENT.cyan }}>
+													<div
+														className="absolute -top-8 left-0 rounded-full px-2.5 py-1 text-[11px] font-bold text-[#04111a] shadow-lg"
+														style={{ background: ACCENT.cyan }}
+													>
 														{box.label} {Math.round(box.conf * 100)}%
 													</div>
 												</div>
@@ -709,7 +1042,8 @@ export default function CalorieDetectorPage() {
 										Stop camera
 									</button>
 								</div>
-								<label className="flex items-center justify-between gap-4 rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-3">
+
+								<label className="flex items-center justify-between gap-4 rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-3 cursor-pointer">
 									<div>
 										<p className="text-sm font-semibold text-white">Realtime detection</p>
 										<p className="text-xs text-zinc-400">Lower latency streaming over WebSocket.</p>
@@ -717,7 +1051,7 @@ export default function CalorieDetectorPage() {
 									<input
 										type="checkbox"
 										className="h-5 w-5 rounded border-zinc-500 bg-zinc-900 text-cyan-400"
-											disabled={!videoReady}
+										disabled={!videoReady}
 										checked={realtimeMode}
 										onChange={(event) => {
 											const on = event.target.checked
@@ -727,7 +1061,7 @@ export default function CalorieDetectorPage() {
 										}}
 									/>
 								</label>
-									{!videoReady ? <p className="text-xs text-amber-300/80">Waiting for camera to warm up...</p> : null}
+								{!videoReady && <p className="text-xs text-amber-300/80">Waiting for camera to warm up...</p>}
 							</div>
 						)}
 
@@ -757,16 +1091,35 @@ export default function CalorieDetectorPage() {
 										<div className="flex items-start justify-between gap-4">
 											<div>
 												<p className="text-[10px] uppercase tracking-[0.35em] text-emerald-300/80">Detected food</p>
-												<p className="mt-2 text-2xl font-black tracking-tight text-white">{detectionResult.food_name}</p>
-												<p className="mt-1 text-sm text-zinc-400">Confidence {Math.round((detectionResult.confidence || 0) * 100)}%</p>
+												<p className="mt-2 text-2xl font-black tracking-tight text-white">
+													{detectionResult.food_name}
+												</p>
+												<p className="mt-1 text-sm text-zinc-400">
+													Confidence {Math.round((detectionResult.confidence || 0) * 100)}%
+												</p>
 											</div>
-											<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-xl text-emerald-300">✓</div>
+											<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-xl text-emerald-300">
+												✓
+											</div>
 										</div>
 
 										<div className="grid grid-cols-2 gap-3">
-											<MacroPill label="Calories" value={detectionResult.calories ?? 0} unit="kcal" accent={ACCENT.calories} />
-											<MacroPill label="Protein" value={detectionResult.protein ?? 0} accent={ACCENT.protein} />
-											<MacroPill label="Carbs" value={detectionResult.carbs ?? 0} accent={ACCENT.carbs} />
+											<MacroPill
+												label="Calories"
+												value={detectionResult.calories ?? 0}
+												unit="kcal"
+												accent={ACCENT.calories}
+											/>
+											<MacroPill
+												label="Protein"
+												value={detectionResult.protein ?? 0}
+												accent={ACCENT.protein}
+											/>
+											<MacroPill
+												label="Carbs"
+												value={detectionResult.carbs ?? 0}
+												accent={ACCENT.carbs}
+											/>
 											<MacroPill label="Fat" value={detectionResult.fat ?? 0} accent={ACCENT.fat} />
 										</div>
 
@@ -783,7 +1136,7 @@ export default function CalorieDetectorPage() {
 										<p className="mt-1 text-sm text-rose-100/70">{detectionResult.error}</p>
 										<button
 											onClick={() => setDetectionResult(null)}
-											className="mt-4 rounded-full border border-rose-400/20 bg-rose-400/10 px-4 py-2 text-sm font-semibold text-rose-200"
+											className="mt-4 rounded-full border border-rose-400/20 bg-rose-400/10 px-4 py-2 text-sm font-semibold text-rose-200 hover:bg-rose-400/20"
 										>
 											Try again
 										</button>
@@ -827,7 +1180,10 @@ export default function CalorieDetectorPage() {
 											type="number"
 											className="w-24 bg-transparent text-sm font-bold text-white outline-none"
 										/>
-										<button onClick={saveGoal} className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-[#061018]">
+										<button
+											onClick={saveGoal}
+											className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-[#061018] hover:bg-white/90"
+										>
 											Save goal
 										</button>
 									</div>
@@ -854,7 +1210,10 @@ export default function CalorieDetectorPage() {
 							{dailyLogs.length > 0 ? (
 								<div className="mt-5 space-y-2">
 									{dailyLogs.map((entry) => (
-										<div key={entry.id} className="flex items-center gap-3 rounded-[1.2rem] border border-white/10 bg-white/5 px-4 py-3">
+										<div
+											key={entry.id}
+											className="flex items-center gap-3 rounded-[1.2rem] border border-white/10 bg-white/5 px-4 py-3"
+										>
 											<div className="h-2.5 w-2.5 rounded-full" style={{ background: ACCENT.calories }} />
 											<div className="min-w-0 flex-1">
 												<p className="truncate text-sm font-bold text-white">{entry.food}</p>
@@ -883,8 +1242,6 @@ export default function CalorieDetectorPage() {
 						</div>
 					</div>
 				</section>
-
-				<canvas ref={canvasRef} className="hidden" />
 			</main>
 		</div>
 	)

@@ -1,7 +1,6 @@
 services:
   - type: web
     name: fitness-app-backend
-    rootDir: backend
     env: node
     plan: free
     buildCommand: npm install && python3 -m pip install --upgrade pip && python3 -m pip install -r requirements.txt && python3 -c "import numpy; import PIL; print('python deps ok')"

@@ -3,7 +3,7 @@
  * Wrapper service to call the Python ML model from Node.js
  */
 
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -17,6 +17,7 @@ class FoodDetectionService {
         this.backendDir = path.dirname(__dirname);
         this.mlModelsDir = path.join(this.backendDir, 'ml_models');
         this.uploadDir = path.join(this.backendDir, 'uploads', 'food-images');
+        this.pythonInvocation = null;
 
         // Create directories if they don't exist
         this.ensureDirectories();
@@ -31,23 +32,81 @@ class FoodDetectionService {
         }
     }
 
+    resolvePythonInvocation() {
+        const envPython = process.env.PYTHON_PATH;
+        const candidates = [];
+
+        if (envPython) {
+            candidates.push({ command: envPython, prefixArgs: [] });
+        }
+
+        candidates.push(
+            { command: 'python3', prefixArgs: [] },
+            { command: 'python', prefixArgs: [] },
+            { command: 'py', prefixArgs: ['-3'] }
+        );
+
+        for (const candidate of candidates) {
+            const probe = spawnSync(
+                candidate.command,
+                [...candidate.prefixArgs, '-c', 'import sys; print(sys.executable)'],
+                {
+                    cwd: this.backendDir,
+                    env: { ...process.env, PYTHONUNBUFFERED: '1' },
+                    encoding: 'utf8'
+                }
+            );
+
+            if (probe.status === 0) {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    getPythonInvocation() {
+        if (this.pythonInvocation) {
+            return this.pythonInvocation;
+        }
+
+        this.pythonInvocation = this.resolvePythonInvocation();
+        return this.pythonInvocation;
+    }
+
     /**
      * Run Python food detection script
-     * @param {string} pythonPath - Path to Python executable
-         * @param {Array} args - Command line arguments
-         * @returns {Promise<Object>} - Detection result or error
-         */
-    runPythonScript(pythonPath = 'python3', args = []) {
+     * @param {Array} args - Command line arguments
+     * @returns {Promise<Object>} - Detection result or error
+     */
+    runPythonScript(args = []) {
         return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                process.kill(pythonProcess.pid);
-                reject(new Error('Food detection timeout (>30s)'));
-            }, 30000);
+            const pythonInvocation = this.getPythonInvocation();
+            if (!pythonInvocation) {
+                reject({
+                    status: 'error',
+                    error: 'Python interpreter not found. Set PYTHON_PATH or install Python 3.',
+                    hint: 'Install Python and run: python -m pip install -r backend/requirements.txt'
+                });
+                return;
+            }
 
-            const pythonProcess = spawn(pythonPath, [this.pythonScriptPath, ...args], {
+            let pythonProcess;
+            const timeout = setTimeout(() => {
+                if (pythonProcess?.pid) {
+                    process.kill(pythonProcess.pid);
+                }
+                reject(new Error('Food detection timeout (>120s)'));
+            }, 120000);
+
+            pythonProcess = spawn(
+                pythonInvocation.command,
+                [...pythonInvocation.prefixArgs, this.pythonScriptPath, ...args],
+                {
                 cwd: this.backendDir,
                 env: { ...process.env, PYTHONUNBUFFERED: '1' }
-            });
+                }
+            );
 
             let output = '';
             let errorOutput = '';
@@ -64,8 +123,25 @@ class FoodDetectionService {
                 clearTimeout(timeout);
 
                 try {
-                    // Try to parse JSON output
-                    const result = JSON.parse(output);
+                    // Try to parse JSON output first.
+                    let parsedOutput = output;
+                    let result;
+
+                    try {
+                        result = JSON.parse(parsedOutput);
+                    } catch {
+                        // Some ML libraries print extra stdout logs. Extract the JSON object region.
+                        const firstBrace = parsedOutput.indexOf('{');
+                        const lastBrace = parsedOutput.lastIndexOf('}');
+
+                        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                            const jsonSlice = parsedOutput.slice(firstBrace, lastBrace + 1);
+                            result = JSON.parse(jsonSlice);
+                        } else {
+                            throw new Error('No JSON payload found in Python output');
+                        }
+                    }
+
                     if (code === 0) {
                         resolve(result);
                     } else {
@@ -93,7 +169,7 @@ class FoodDetectionService {
                 reject({
                     status: 'error',
                     error: `Failed to run Python script: ${err.message}`,
-                    hint: 'Make sure Python 3 is installed and TensorFlow is available'
+                    hint: 'Make sure Python 3 is installed and backend requirements are installed'
                 });
             });
         });
@@ -115,18 +191,7 @@ class FoodDetectionService {
                 };
             }
 
-            // Run detection
-            let pythonPath = 'python3';
-
-            // Try to find Python executable
-            try {
-                await this.runPythonScript('python3', ['--version']);
-            } catch (e) {
-                // Try python instead of python3
-                pythonPath = 'python';
-            }
-
-            const result = await this.runPythonScript(pythonPath, [
+            const result = await this.runPythonScript([
                 imagePath,
                 confidenceThreshold.toString()
             ]);
@@ -185,7 +250,7 @@ class FoodDetectionService {
      */
     async getFoodNutrition(foodName) {
         try {
-            const result = await this.runPythonScript('python3', [
+            const result = await this.runPythonScript([
                 '--list-foods'
             ]);
 
@@ -222,7 +287,7 @@ class FoodDetectionService {
      */
     async getAllFoods() {
         try {
-            const result = await this.runPythonScript('python3', ['--list-foods']);
+            const result = await this.runPythonScript(['--list-foods']);
             return result;
         } catch (error) {
             return {
