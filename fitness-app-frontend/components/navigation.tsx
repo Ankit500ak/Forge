@@ -28,7 +28,13 @@ export default function Navigation() {
     { href: '/inventory', label: 'Gear', icon: '🎒' },
     { href: '/redeem', label: 'Redeem', icon: '🎁' },
     { href: '/workouts', label: 'Workouts', icon: '💪' },
+    { href: '/system', label: 'System', icon: '🗡️' },
   ]
+
+  // Routes that live inside the "More" menu still need a clear active
+  // state on the bottom bar itself, so the More button lights up for them.
+  const secondaryActive = secondaryNavItems.some((item) => item.href === pathname)
+  const menuActive = showMenu || secondaryActive
 
   return (
     <>
@@ -131,7 +137,7 @@ export default function Navigation() {
               className={`relative flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all duration-300 group min-w-[56px]`}
             >
               {/* Active glow */}
-              {showMenu && (
+              {menuActive && (
                 <div
                   className="absolute inset-0 rounded-xl opacity-30 blur-md"
                   style={{
@@ -149,14 +155,14 @@ export default function Navigation() {
                     showMenu ? 'scale-100 rotate-90' : 'scale-90 group-hover:scale-95 group-hover:rotate-45'
                   }`}
                   style={{
-                    color: showMenu ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
-                    filter: showMenu
+                    color: menuActive ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
+                    filter: menuActive
                       ? 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.6))'
                       : 'none',
                   }}
                 />
 
-                {showMenu && (
+                {menuActive && (
                   <div
                     className="absolute -top-0.5 -right-0.5 w-1 h-1 rounded-full bg-white animate-pulse"
                     style={{
@@ -169,7 +175,7 @@ export default function Navigation() {
               {/* Label */}
               <span
                 className={`text-[10px] font-semibold transition-all duration-300 ${
-                  showMenu ? 'opacity-100' : 'opacity-50 group-hover:opacity-70'
+                  menuActive ? 'opacity-100' : 'opacity-50 group-hover:opacity-70'
                 }`}
                 style={{
                   color: '#ffffff',
@@ -180,7 +186,7 @@ export default function Navigation() {
               </span>
 
               {/* Bottom indicator */}
-              {showMenu && (
+              {menuActive && (
                 <div
                   className="absolute -bottom-0.5 left-1/2 transform -translate-x-1/2 w-8 h-0.5 rounded-full"
                   style={{
@@ -232,16 +238,18 @@ export default function Navigation() {
 
                   {/* Menu Items - Compact */}
                   <div className="py-1">
-                    {secondaryNavItems.map((item) => (
+                    {secondaryNavItems.map((item) => {
+                      const isActive = pathname === item.href
+                      return (
                       <Link
                         key={item.href}
                         href={item.href}
                         onClick={() => setShowMenu(false)}
                         className="group flex items-center gap-2.5 px-3 py-2 transition-all duration-200 relative overflow-hidden"
                       >
-                        {/* Hover background */}
-                        <div 
-                          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        {/* Hover / active background */}
+                        <div
+                          className={`absolute inset-0 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                           style={{
                             background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.08), transparent)',
                           }}
@@ -259,16 +267,17 @@ export default function Navigation() {
                         </div>
 
                         {/* Label */}
-                        <span className="text-sm font-medium text-white/80 group-hover:text-white transition-colors">
+                        <span className={`text-sm transition-colors ${isActive ? 'font-semibold text-white' : 'font-medium text-white/80 group-hover:text-white'}`}>
                           {item.label}
                         </span>
 
-                        {/* Arrow */}
-                        <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="w-1 h-1 rounded-full bg-white/60" />
+                        {/* Arrow / active dot */}
+                        <div className={`ml-auto transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                          <div className={`w-1 h-1 rounded-full ${isActive ? 'bg-white' : 'bg-white/60'}`} />
                         </div>
                       </Link>
-                    ))}
+                      )
+                    })}
                   </div>
 
                   {/* Divider */}

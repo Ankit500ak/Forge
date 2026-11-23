@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.fitnessrpg.app',
-  appName: 'Fitness RPG',
+  appName: 'Forge — The System',
   webDir: 'out',
   server: {
     androidScheme: 'https',

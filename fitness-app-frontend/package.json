@@ -1,6 +1,6 @@
 {
-  "name": "my-v0-project",
-  "version": "0.1.0",
+  "name": "forge",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "build": "next build",
@@ -19,6 +19,7 @@
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@mediapipe/pose": "^0.5.1675469404",
+    "@mediapipe/tasks-vision": "^1.2.3",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
     "@radix-ui/react-aspect-ratio": "1.1.1",
