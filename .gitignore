@@ -98,6 +98,12 @@ public
 !fitness-app-frontend/public/ranks/
 !fitness-app-frontend/public/ranks/*.png
 
+# Exception: app icons (favicon / apple touch icon)
+!fitness-app-frontend/public/icon.svg
+!fitness-app-frontend/public/icon-32x32.png
+!fitness-app-frontend/public/icon-512.png
+!fitness-app-frontend/public/apple-icon.png
+
 # Vuepress build output
 .vuepress/dist
 

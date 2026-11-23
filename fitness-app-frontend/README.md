@@ -1,4 +1,55 @@
-# FORGE - Gamified Fitness App
+# FORGE — The System
+
+A Solo-Leveling-style gamified fitness app. The System (route `/system`) issues
+daily and weekly quests, tracks levels, Hunter Ranks (E → S) and ability
+points, keeps a streak/records calendar with an XP graph, offers a penalty
+recovery quest after a missed day, and counts real push-ups, squats and
+sit-ups on-device with a MediaPipe pose model (route `/training`) — no video
+ever leaves the device.
+
+## Run (development)
+
+```bash
+npm install
+npm run dev          # http://localhost:3000 — start at /system
+```
+
+Demo login: `demo@forge.com` / `demo123`. All System progress is stored
+locally in the browser (`localStorage`, key `forge-system-state-v1`).
+
+## Production build (web)
+
+The app is a fully static export (`output: 'export'`):
+
+```bash
+NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1 npm run build
+# static site lands in out/ — serve out/ with any static host
+npx tsc --noEmit     # typecheck (next.config ignores TS errors during build)
+```
+
+MediaPipe WASM + the pose model live in `public/mediapipe/` and
+`public/models/` and are copied into `out/`; the pose code chunk is
+lazy-loaded only on `/training`.
+
+## Android APK (Capacitor)
+
+Requires JDK 17 and the Android SDK (`ANDROID_HOME` set, platform +
+build-tools installed via `sdkmanager`).
+
+```bash
+npm run build                       # refresh out/
+npx cap sync android                # copy web assets into android/
+# CAMERA permission is declared in android/app/src/main/AndroidManifest.xml
+cd android && ./gradlew assembleDebug
+# APK: android/app/build/outputs/apk/debug/app-debug.apk  (debug-signed, sideloadable)
+```
+
+`capacitor.config.ts`: appId `com.fitnessrpg.app`, appName
+`Forge — The System`, webDir `out`.
+
+---
+
+# FORGE - Gamified Fitness App (original dashboard app)
 
 A React-based gamified fitness application where users level up their fitness journey by converting workouts into stat points and collecting legendary equipment.
 

@@ -1,0 +1,1874 @@
+/*
+ * Solo Leveling-inspired "System" theme for Forge — "Icy System" edition.
+ * Original CSS only. Sharp angular System windows over true black: flatter
+ * translucent navy glass, 1px icy-cyan borders with corner brackets, one
+ * disciplined bloom recipe, and a cold blue-white palette throughout.
+ * Scoped under .sl-system so the rest of the app theme is untouched.
+ */
+
+.sl-system {
+  --sl-accent: #4cc9ff;
+  --sl-ice: #bfe6ff;
+  --sl-ice-bright: #e8f6ff;
+  --sl-border: rgba(143, 211, 255, 0.6);
+  --sl-border-soft: rgba(143, 211, 255, 0.28);
+  --sl-ink-dim: rgba(191, 230, 255, 0.78);
+  --sl-ink-faint: rgba(168, 205, 250, 0.62);
+  --sl-glass: rgba(255, 255, 255, 0.04);
+  --sl-glass-strong: rgba(255, 255, 255, 0.07);
+  --sl-stroke: rgba(143, 211, 255, 0.22);
+  /* One glow system, two intensities — tight bloom, no smear at 1x. */
+  --sl-glow-hero:
+    0 0 4px rgba(160, 224, 255, 0.9),
+    0 0 13px rgba(76, 201, 255, 0.5),
+    0 0 30px rgba(76, 201, 255, 0.26);
+  --sl-glow-std:
+    0 0 3px rgba(160, 224, 255, 0.5),
+    0 0 9px rgba(76, 201, 255, 0.3);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  color: var(--sl-ice-bright);
+}
+
+/* Numbers: tabular, mono-flavoured for counters and readouts. */
+.sl-num {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Ambient page backdrop --------------------------------------------- */
+/* True black base, a faint blueprint grid fading from the top, and one
+   huge blurred blue aura orb. */
+.sl-page-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -12%, rgba(28, 151, 188, 0.14), transparent 62%),
+    linear-gradient(180deg, #030308 0%, #010102 55%, #02020a 100%);
+}
+.sl-page-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(120, 170, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 170, 255, 0.05) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(ellipse 95% 68% at 50% 0%, black 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 95% 68% at 50% 0%, black 25%, transparent 78%);
+}
+.sl-aura {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(50px);
+  will-change: transform;
+}
+.sl-aura-blue {
+  width: 58vmax;
+  height: 58vmax;
+  left: -18vmax;
+  top: -24vmax;
+  background: radial-gradient(circle, rgba(18, 148, 184, 0.3), rgba(18, 148, 184, 0) 65%);
+  animation: sl-drift-a 26s ease-in-out infinite alternate;
+}
+@keyframes sl-drift-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(9vmax, 6vmax, 0) scale(1.14);
+  }
+}
+
+/* Drifting aura particles (spans rendered by the page). */
+.sl-particles {
+  position: absolute;
+  inset: 0;
+}
+.sl-particles span {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(170, 224, 255, 0.95), rgba(170, 224, 255, 0) 68%);
+  opacity: 0;
+  animation: sl-float linear infinite;
+  will-change: transform, opacity;
+}
+@keyframes sl-float {
+  0% {
+    transform: translate3d(0, 4vh, 0);
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.85;
+  }
+  60% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate3d(2.5vw, -16vh, 0);
+    opacity: 0;
+  }
+}
+
+/* --- System window ------------------------------------------------------- */
+/* Sharp framing: 5px radius, 1px icy-cyan gradient border, corner
+   brackets, flatter translucent navy fill over backdrop blur. */
+.sl-window {
+  position: relative;
+  border-radius: 5px;
+  padding: 1px;
+  background: linear-gradient(
+    165deg,
+    rgba(191, 230, 255, 0.72),
+    rgba(143, 211, 255, 0.3) 42%,
+    rgba(76, 201, 255, 0.5) 92%
+  );
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.7),
+    0 0 34px rgba(76, 201, 255, 0.12);
+  animation: sl-rise 0.7s cubic-bezier(0.22, 0.9, 0.3, 1) both;
+}
+@keyframes sl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* Corner brackets — one span per corner, offset by -1px so the bracket
+   arms sit exactly on the window's 1px border line. */
+.sl-corner {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  z-index: 3;
+  pointer-events: none;
+}
+.sl-corner.tl {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid rgba(191, 230, 255, 0.95);
+  border-left: 2px solid rgba(191, 230, 255, 0.95);
+}
+.sl-corner.tr {
+  top: -1px;
+  right: -1px;
+  border-top: 2px solid rgba(191, 230, 255, 0.95);
+  border-right: 2px solid rgba(191, 230, 255, 0.95);
+}
+.sl-corner.bl {
+  bottom: -1px;
+  left: -1px;
+  border-bottom: 2px solid rgba(191, 230, 255, 0.95);
+  border-left: 2px solid rgba(191, 230, 255, 0.95);
+}
+.sl-corner.br {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 2px solid rgba(191, 230, 255, 0.95);
+  border-right: 2px solid rgba(191, 230, 255, 0.95);
+}
+.sl-window-inner {
+  position: relative;
+  border-radius: 4px;
+  padding: 1.125rem;
+  overflow: hidden;
+  /* One flat translucent navy fill — the border gradient carries the light. */
+  background: rgba(10, 22, 40, 0.72);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(191, 230, 255, 0.07),
+    inset 0 0 0 1px rgba(191, 230, 255, 0.04);
+}
+@media (min-width: 640px) {
+  .sl-window-inner {
+    padding: 1.75rem;
+  }
+}
+
+/* Window header: flat icy title flanked by rules and diamonds. */
+.sl-window-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.4rem;
+}
+.sl-window-header .sl-rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(143, 211, 255, 0.5), transparent);
+}
+.sl-diamond {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  transform: rotate(45deg);
+  background: var(--sl-accent);
+  box-shadow: var(--sl-glow-std);
+}
+.sl-window-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--sl-ice-bright);
+  text-shadow: var(--sl-glow-std);
+}
+
+/* --- Hero: level + rank emblem ------------------------------------------- */
+.sl-level-num {
+  font-size: clamp(4.2rem, 15vw, 6.2rem);
+  font-weight: 800;
+  line-height: 0.88;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--sl-ice-bright);
+  text-shadow: var(--sl-glow-hero);
+}
+.sl-display {
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--sl-ice-bright);
+  text-shadow: var(--sl-glow-std);
+}
+.sl-display.hero {
+  text-shadow: var(--sl-glow-hero);
+}
+
+/* Rank theming: icy intensity scales with the hunter rank. Violet is
+   reserved for rank-up moments, never the standing palette. */
+.sl-hero {
+  --rank-core: #7dd3fc;
+  --rank-glow: rgba(56, 182, 255, 0.5);
+  --rank-glow-soft: rgba(56, 182, 255, 0.22);
+}
+.sl-hero[data-rank='D'] {
+  --rank-core: #67e8f9;
+  --rank-glow: rgba(56, 220, 255, 0.62);
+  --rank-glow-soft: rgba(56, 220, 255, 0.28);
+}
+.sl-hero[data-rank='C'] {
+  --rank-core: #8fd8ff;
+  --rank-glow: rgba(76, 201, 255, 0.68);
+  --rank-glow-soft: rgba(76, 201, 255, 0.3);
+}
+.sl-hero[data-rank='B'] {
+  --rank-core: #a5e0ff;
+  --rank-glow: rgba(76, 201, 255, 0.76);
+  --rank-glow-soft: rgba(110, 210, 255, 0.34);
+}
+.sl-hero[data-rank='A'] {
+  --rank-core: #d3efff;
+  --rank-glow: rgba(140, 220, 255, 0.86);
+  --rank-glow-soft: rgba(140, 220, 255, 0.42);
+}
+.sl-hero[data-rank='S'] {
+  --rank-core: #ffffff;
+  --rank-glow: rgba(200, 238, 255, 0.95);
+  --rank-glow-soft: rgba(160, 220, 255, 0.52);
+}
+
+/* The wrap is exactly the frame's box — no ghost layout box around the
+   emblem, so its left edge sits on the content column edge. */
+.sl-emblem-wrap {
+  position: relative;
+  width: 96px;
+  height: 106px;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+@media (min-width: 640px) {
+  .sl-emblem-wrap {
+    width: 138px;
+    height: 152px;
+  }
+}
+/* Simplified emblem: one static hex frame behind the badge — no rotating
+   rune circles, no conic aura ring. The frame is a 1.5px icy-cyan stroke
+   at ~72% with a fainter inner stroke line inside the dark fill. */
+.sl-emblem-wrap > * {
+  grid-area: 1 / 1;
+}
+.sl-emblem-frame {
+  width: 96px;
+  height: 106px;
+  clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  background: rgba(143, 211, 255, 0.72);
+  padding: 1.5px;
+}
+.sl-emblem-frame-mid {
+  width: 100%;
+  height: 100%;
+  clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  background: rgba(143, 211, 255, 0.28);
+  padding: 1px;
+}
+.sl-emblem-frame-inner {
+  width: 100%;
+  height: 100%;
+  clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  background: rgba(5, 9, 20, 0.92);
+}
+@media (min-width: 640px) {
+  .sl-emblem-frame {
+    width: 138px;
+    height: 152px;
+  }
+}
+@keyframes sl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.sl-emblem {
+  position: relative;
+  width: 82px;
+  height: 92px;
+  clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  background: linear-gradient(165deg, rgba(191, 230, 255, 0.7), rgba(76, 201, 255, 0.45));
+  padding: 1px;
+  filter: drop-shadow(0 0 22px var(--rank-glow-soft));
+}
+@media (min-width: 640px) {
+  .sl-emblem {
+    width: 122px;
+    height: 136px;
+  }
+}
+.sl-emblem-core {
+  width: 100%;
+  height: 100%;
+  clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  background: linear-gradient(170deg, rgba(14, 28, 52, 0.94), rgba(5, 8, 20, 0.97));
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 34px var(--rank-glow-soft);
+}
+.sl-rank-letter {
+  font-size: 2.8rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--sl-ice-bright);
+  text-shadow:
+    0 0 6px var(--rank-core),
+    0 0 16px var(--rank-glow),
+    0 0 34px var(--rank-glow);
+}
+@media (min-width: 640px) {
+  .sl-rank-letter {
+    font-size: 4.3rem;
+  }
+}
+
+/* Compact metadata row (title / class / quests) under the player name. */
+.sl-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.9rem;
+}
+.sl-meta-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sl-ice-bright);
+  white-space: nowrap;
+}
+.sl-meta-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--sl-ink-dim);
+}
+.sl-meta-sep {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  align-self: center;
+  transform: rotate(45deg);
+  background: rgba(143, 211, 255, 0.55);
+}
+/* Mobile: metadata becomes a strict 3-cell grid — label over value, thin
+   dividers between cells, no wrapping separators or orphaned items. */
+@media (max-width: 639px) {
+  .sl-meta-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    align-items: start;
+    gap: 0;
+    width: 100%;
+  }
+  .sl-meta-item {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    text-align: center;
+    white-space: nowrap;
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    padding: 0 0.35rem;
+  }
+  .sl-meta-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+  }
+  .sl-meta-item + .sl-meta-item {
+    border-left: 1px solid rgba(143, 211, 255, 0.16);
+  }
+  .sl-meta-sep {
+    display: none;
+  }
+}
+
+/* Level row: the level numeral gets its own tall cell; TOTAL XP and
+   NEXT RANK stack compactly beside it as label/value rows whose values
+   share one right edge and one baseline rhythm. */
+.sl-level-strip {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: stretch;
+  gap: 1.25rem;
+}
+.sl-level-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.85rem;
+  border-left: 1px solid rgba(191, 230, 255, 0.1);
+  padding-left: 1.25rem;
+  min-width: 0;
+}
+.sl-level-mini {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.sl-level-mini .sl-label {
+  letter-spacing: 0.18em;
+  white-space: nowrap;
+}
+.sl-level-mini-num {
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 0.9;
+}
+.sl-level-sub {
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(232, 246, 255, 0.6);
+  white-space: nowrap;
+}
+
+/* Small bordered chips (quest rewards). */
+.sl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.34rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid var(--sl-stroke);
+  background: var(--sl-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sl-ice-bright);
+}
+.sl-chip .sl-chip-label {
+  color: var(--sl-ink-dim);
+  font-weight: 600;
+}
+/* Reward numerals stay bright — they are the payoff, never dimmed. */
+.sl-chip .sl-num {
+  color: #ffffff;
+  font-weight: 800;
+  text-shadow: var(--sl-glow-std);
+}
+
+/* Pulsing pill for available ability points. */
+.sl-points-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 4px;
+  border: 1px solid rgba(143, 211, 255, 0.4);
+  background: rgba(76, 201, 255, 0.09);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.sl-points-pill.live {
+  animation: sl-pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes sl-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(76, 201, 255, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(76, 201, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(76, 201, 255, 0);
+  }
+}
+/* With no points to spend the pill drops its button chrome entirely —
+   no border, no fill — so it reads as a status readout, not a control. */
+.sl-points-pill.idle {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--sl-ink-dim);
+}
+/* The pill's "+" stays lit in every state; it breathes while points are
+   spendable. */
+.sl-plus-lit {
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--sl-ice);
+  text-shadow: 0 0 5px rgba(160, 224, 255, 0.55);
+}
+.sl-points-pill.live .sl-plus-lit {
+  color: #ffffff;
+  text-shadow:
+    0 0 6px rgba(160, 224, 255, 0.95),
+    0 0 16px rgba(76, 201, 255, 0.8);
+  animation: sl-plus-breathe 2s ease-in-out infinite;
+}
+@keyframes sl-plus-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* --- Bars ------------------------------------------------------------------ */
+/* Tracks stay clearly visible: pale fill, inner border, inset shadow. */
+.sl-bar {
+  position: relative;
+  height: 9px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(191, 230, 255, 0.16);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.sl-bar.xp {
+  height: 16px;
+  border-color: rgba(143, 211, 255, 0.3);
+}
+.sl-bar-fill {
+  position: relative;
+  height: 100%;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: width 0.6s cubic-bezier(0.22, 0.9, 0.3, 1);
+  background: linear-gradient(90deg, #2f9dff, var(--sl-accent));
+}
+/* XP: segmented ticks over the gradient + glowing leading-edge cap. */
+.sl-bar-fill.xp {
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 21px,
+      rgba(3, 12, 22, 0.55) 21px,
+      rgba(3, 12, 22, 0.55) 23px
+    ),
+    linear-gradient(90deg, #2f9dff, var(--sl-accent));
+}
+.sl-bar-fill.xp::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 3px;
+  height: 100%;
+  background: #eaf9ff;
+  box-shadow:
+    0 0 8px rgba(160, 224, 255, 0.95),
+    0 0 18px rgba(76, 201, 255, 0.7);
+}
+.sl-bar-fill.hp {
+  background: linear-gradient(90deg, #1e8f6e, #35c79b);
+}
+.sl-bar-fill.mp {
+  background: linear-gradient(90deg, #1493b8, var(--sl-accent));
+}
+.sl-bar-fill.quest {
+  background: linear-gradient(90deg, #2f9dff, var(--sl-accent));
+}
+.sl-bar-fill.quest-done {
+  background: linear-gradient(90deg, #1e8f6e, #35c79b);
+}
+
+/* --- Stat tiles -------------------------------------------------------------- */
+.sl-stat-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid var(--sl-stroke);
+  background: var(--sl-glass);
+  box-shadow: inset 0 1px 0 rgba(191, 230, 255, 0.07);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.sl-stat-tile:hover {
+  transform: translateY(-2px);
+  border-color: rgba(143, 211, 255, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(191, 230, 255, 0.08),
+    0 12px 26px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(76, 201, 255, 0.14);
+}
+.sl-icon-orb {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: #a9dcff;
+  border: 1px solid rgba(143, 211, 255, 0.3);
+  background: linear-gradient(150deg, rgba(76, 201, 255, 0.18), rgba(76, 201, 255, 0.05));
+  box-shadow: inset 0 1px 0 rgba(191, 230, 255, 0.14);
+}
+.sl-icon-orb svg {
+  width: 18px;
+  height: 18px;
+}
+/* Abbreviation is the anchor; full name whispers underneath. */
+.sl-stat-abbr {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1.1;
+  color: var(--sl-ice-bright);
+  text-shadow: var(--sl-glow-std);
+}
+.sl-stat-full {
+  display: block;
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(232, 246, 255, 0.65);
+  line-height: 1.25;
+}
+.sl-stat-value {
+  margin-left: auto;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: right;
+  color: #ffffff;
+}
+/* ONE tile layout for every stat: the label column is a fixed width, so
+   the value always starts from the same line and can never collide with
+   the label (the old "END12" squeeze), and every tile — wide or not —
+   shows its secondary label the same way. */
+.sl-stat-labels {
+  flex: none;
+  width: 4.4rem;
+  min-width: 0;
+}
+/* Small square allocation button — quiet until points exist. */
+.sl-plus-btn {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  border: 1px solid rgba(143, 211, 255, 0.3);
+  background: transparent;
+  color: var(--sl-ink-faint);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.14s ease,
+    color 0.14s ease, border-color 0.14s ease;
+}
+.sl-plus-btn:not(:disabled) {
+  border-color: rgba(143, 211, 255, 0.75);
+  background: rgba(76, 201, 255, 0.14);
+  color: var(--sl-ice-bright);
+  box-shadow: var(--sl-glow-std);
+}
+.sl-plus-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+  background: rgba(76, 201, 255, 0.24);
+}
+.sl-plus-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.sl-plus-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* --- Buttons ------------------------------------------------------------------- */
+/* One control system: every action control is 36px tall, inline-flex
+   centred, same radius and type treatment. Variants only change weight:
+   .ghost is the quiet secondary, .commit is the filled commit action. */
+.sl-btn {
+  position: relative;
+  overflow: hidden;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 5px;
+  border: 1px solid rgba(143, 211, 255, 0.38);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--sl-ice-bright);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0 1.05rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  user-select: none;
+}
+.sl-btn.ghost {
+  background: transparent;
+  border-color: rgba(143, 211, 255, 0.38);
+  color: var(--sl-ice);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.sl-btn.ghost:hover:not(:disabled) {
+  background: rgba(76, 201, 255, 0.07);
+  box-shadow: none;
+  color: var(--sl-ice-bright);
+}
+/* COMPLETE is a cyan-outline ghost at a fixed width — it never competes
+   with CLAIM REWARD. The solid fill is reserved for the moment the
+   quest target is met (.ready), and for CLAIM alone otherwise. */
+.sl-btn.commit {
+  width: 7.25rem;
+  flex: none;
+  background: transparent;
+  border-color: rgba(143, 211, 255, 0.65);
+  color: var(--sl-ice-bright);
+  box-shadow: none;
+  text-shadow: none;
+}
+.sl-btn.commit:hover:not(:disabled) {
+  background: rgba(76, 201, 255, 0.1);
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+.sl-btn.commit.ready:hover:not(:disabled) {
+  background: linear-gradient(135deg, #45b2e6, #63d4ff);
+  box-shadow: 0 8px 22px rgba(76, 201, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.sl-btn.commit.ready {
+  border-color: rgba(191, 230, 255, 0.55);
+  background: linear-gradient(135deg, #38a4d8, var(--sl-accent));
+  color: #ffffff;
+  text-shadow: 0 0 6px rgba(10, 40, 70, 0.45);
+  box-shadow: 0 6px 18px rgba(76, 201, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.sl-btn.icon {
+  width: 36px;
+  padding: 0;
+  flex: none;
+}
+.sl-btn:hover:not(:disabled) {
+  background: rgba(76, 201, 255, 0.14);
+  box-shadow: var(--sl-glow-std);
+  transform: translateY(-1px);
+}
+.sl-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.sl-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+/* The solid glowing fill lives here alone — CLAIM REWARD (and modal
+   confirmations). Icy cyan, inside the palette: no electric blue. */
+/* The gradient is deliberately narrow (~10% lightness) so the white
+   label keeps its contrast from one end of the fill to the other. */
+.sl-btn.primary {
+  border-color: rgba(191, 230, 255, 0.55);
+  background: linear-gradient(135deg, #38a4d8, var(--sl-accent));
+  color: #ffffff;
+  font-size: 0.78rem;
+  text-shadow: 0 0 6px rgba(10, 40, 70, 0.45);
+  box-shadow: 0 10px 32px rgba(76, 201, 255, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.sl-btn.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #45b2e6, #63d4ff);
+  box-shadow: 0 14px 40px rgba(76, 201, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.sl-btn.danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(220, 38, 38, 0.14);
+  color: #fecaca;
+}
+/* Claim-reward: same 36px control height as every other action. Enabled
+   it breathes with a glow pulse plus the shine sweep; disabled it stays
+   fully legible — muted fill and readable text, never washed out. */
+.sl-claim {
+  height: 36px;
+  padding: 0 2.6rem;
+  font-size: 0.92rem;
+  letter-spacing: 0.24em;
+}
+.sl-claim:not(:disabled) {
+  animation: sl-claim-pulse 2.2s ease-in-out infinite;
+}
+@keyframes sl-claim-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 10px 32px rgba(76, 201, 255, 0.38),
+      0 0 0 0 rgba(76, 201, 255, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 10px 36px rgba(76, 201, 255, 0.52),
+      0 0 22px 4px rgba(76, 201, 255, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+}
+.sl-claim::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 70%
+  );
+  transform: translateX(-130%);
+  animation: sl-shine 3.4s ease-in-out infinite;
+}
+@keyframes sl-shine {
+  0% {
+    transform: translateX(-130%);
+  }
+  55%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+/* Disabled CLAIM must never read as a tappable action: the label drops
+   to ~45%, the border loses its glow entirely, and the lock sits inside
+   the button itself. */
+.sl-claim:disabled {
+  opacity: 1;
+  background: rgba(76, 201, 255, 0.03);
+  border-color: rgba(143, 211, 255, 0.16);
+  color: rgba(168, 205, 250, 0.45);
+  text-shadow: none;
+  box-shadow: none;
+}
+.sl-claim:disabled svg {
+  opacity: 0.6;
+}
+.sl-claim:disabled::after {
+  animation: none;
+}
+/* Why-claim-is-locked line under the disabled button. */
+.sl-claim-note {
+  margin-top: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--sl-ink-dim);
+}
+.sl-claim-note svg {
+  flex: none;
+  color: var(--sl-ink-faint);
+}
+
+/* Square steppers for quest counters — same 36px module as .sl-btn. */
+.sl-round-btn {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  border: 1px solid rgba(143, 211, 255, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--sl-ice-bright);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.14s ease, transform 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease;
+}
+.sl-round-btn:hover:not(:disabled) {
+  background: rgba(76, 201, 255, 0.16);
+  box-shadow: var(--sl-glow-std);
+}
+.sl-round-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+.sl-round-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* --- Quest cards ------------------------------------------------------------------ */
+.sl-quest-card {
+  position: relative;
+  border-radius: 6px;
+  border: 1px solid var(--sl-border-soft);
+  background: var(--sl-glass);
+  box-shadow: inset 0 1px 0 rgba(191, 230, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 1rem;
+  transition: transform 0.18s ease, border-color 0.25s ease, box-shadow 0.25s ease,
+    background 0.25s ease;
+}
+.sl-quest-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(143, 211, 255, 0.45);
+}
+/* Done cards keep the SAME fill as every other card — completion reads
+   through the bright edge and the check, not a new fill — and they
+   collapse to a compact single row. */
+.sl-quest-card.done {
+  border-color: rgba(53, 199, 155, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(191, 230, 255, 0.06),
+    0 0 24px rgba(53, 199, 155, 0.13);
+  padding: 0.6rem 1rem;
+}
+.sl-quest-done-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.sl-task-complete {
+  flex: none;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7be7c4;
+  white-space: nowrap;
+}
+@media (max-width: 479px) {
+  .sl-task-complete {
+    display: none;
+  }
+}
+/* Quest icon: a plain framed glyph. Progress lives in the bar alone —
+   one representation, no ring competing with it. */
+.sl-quest-icon {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: #bfe6ff;
+  border: 1px solid rgba(143, 211, 255, 0.3);
+  background: linear-gradient(150deg, rgba(76, 201, 255, 0.14), rgba(76, 201, 255, 0.04));
+  box-shadow: inset 0 1px 0 rgba(191, 230, 255, 0.12);
+}
+.sl-quest-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.sl-quest-icon.small {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+}
+.sl-quest-icon.small svg {
+  width: 16px;
+  height: 16px;
+}
+.sl-quest-card.done .sl-quest-icon {
+  color: #35c79b;
+  border-color: rgba(53, 199, 155, 0.55);
+  background: linear-gradient(150deg, rgba(53, 199, 155, 0.16), rgba(53, 199, 155, 0.05));
+}
+/* System-voice notification strip — the bracketed panel header, treated
+   as the panel's primary voice. ONE bracket idiom everywhere: the
+   brackets hug the text (never pinned to the strip edges), the text is
+   15–16px sentence case, and the copy is kept short enough to sit on
+   one line. */
+.sl-strip {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.3rem;
+  border-top: 1px solid rgba(143, 211, 255, 0.35);
+  border-bottom: 1px solid rgba(143, 211, 255, 0.35);
+  background: rgba(76, 201, 255, 0.06);
+  padding: 0.6rem 0.75rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.45;
+  color: var(--sl-ice-bright);
+  text-shadow: var(--sl-glow-std);
+}
+.sl-strip-bracket {
+  flex: none;
+  font-weight: 700;
+}
+.sl-strip-text {
+  flex: none;
+  text-align: center;
+  max-width: 100%;
+}
+/* Warning dismiss: a real 36px target, not a bare glyph. */
+.sl-dismiss {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  font-weight: 700;
+  line-height: 1;
+}
+.sl-check-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: linear-gradient(140deg, #1e8f6e, #35c79b);
+  color: #03211a;
+  box-shadow: 0 0 14px rgba(53, 199, 155, 0.6);
+  animation: sl-check-pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+@keyframes sl-check-pop {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+
+/* --- Warnings ------------------------------------------------------------------------ */
+.sl-warning {
+  border-radius: 6px;
+  border: 1px solid rgba(245, 158, 11, 0.65);
+  background: rgba(245, 158, 11, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fde68a;
+  padding: 0.85rem 1rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  line-height: 1.55;
+  box-shadow: 0 0 22px rgba(245, 158, 11, 0.08);
+}
+.sl-warning.danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: linear-gradient(160deg, rgba(220, 38, 38, 0.16), rgba(220, 38, 38, 0.05));
+  color: #fecaca;
+  box-shadow: 0 0 22px rgba(220, 38, 38, 0.12);
+}
+
+/* --- Text helpers ----------------------------------------------------------------------- */
+.sl-label {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.69rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--sl-ink-dim);
+}
+.sl-value {
+  color: var(--sl-ice-bright);
+  text-shadow: var(--sl-glow-std);
+}
+/* Page footer in the System's voice — balanced wrapping, no orphans. */
+.sl-footer {
+  letter-spacing: 0.04em;
+  text-wrap: balance;
+}
+.sl-blink {
+  animation: sl-blink 1.1s steps(2, start) infinite;
+}
+@keyframes sl-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* --- Notification modal --------------------------------------------------------------------- */
+.sl-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 6, 0.66);
+  backdrop-filter: blur(9px) saturate(130%);
+  -webkit-backdrop-filter: blur(9px) saturate(130%);
+  animation: sl-fade 0.25s ease both;
+}
+@keyframes sl-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.sl-modal {
+  position: relative;
+  width: 100%;
+  max-width: 27rem;
+  animation: sl-pop 0.38s cubic-bezier(0.2, 1.4, 0.36, 1) both;
+}
+@keyframes sl-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+/* One subtle flare behind the level-up window — a single soft radial
+   bloom, no rotating rays. The moment is carried by scale and type. */
+.sl-flare {
+  position: absolute;
+  inset: -30%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgba(120, 210, 255, 0.22) 0%,
+    rgba(76, 201, 255, 0.08) 42%,
+    transparent 68%
+  );
+}
+/* The level-up modal is a moment, not a toast: at least 1.5x the
+   standard notification width, on desktop and mobile alike. */
+.sl-modal.levelup {
+  max-width: 40rem;
+}
+.sl-modal.rankup {
+  max-width: 42rem;
+}
+.sl-window-levelup .sl-window-title {
+  font-size: 1.35rem;
+  letter-spacing: 0.3em;
+}
+.sl-window-levelup {
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.7),
+    0 0 70px rgba(76, 201, 255, 0.35),
+    0 0 120px rgba(160, 220, 255, 0.22);
+}
+/* Hero level transition: 3 → 4, set at display size. */
+.sl-levelup-hero {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--sl-ice-bright);
+  text-shadow: var(--sl-glow-hero);
+}
+.sl-levelup-hero .from {
+  font-size: 3.2rem;
+  opacity: 0.55;
+}
+.sl-levelup-hero .arrow {
+  font-size: 2.2rem;
+  color: var(--sl-accent);
+}
+.sl-levelup-hero .to {
+  font-size: 5.2rem;
+}
+@media (min-width: 640px) {
+  .sl-levelup-hero .from {
+    font-size: 4.2rem;
+  }
+  .sl-levelup-hero .arrow {
+    font-size: 2.8rem;
+  }
+  .sl-levelup-hero .to {
+    font-size: 7rem;
+  }
+}
+/* Large primary action for modal moments. */
+.sl-btn.accept-lg {
+  height: 52px;
+  padding: 0 3.4rem;
+  font-size: 1rem;
+  letter-spacing: 0.26em;
+}
+/* Rank-up ceremony: violet is reserved for this moment alone. */
+.sl-window-rankup {
+  background: linear-gradient(
+    165deg,
+    rgba(216, 180, 254, 0.75),
+    rgba(167, 139, 250, 0.35) 42%,
+    rgba(139, 92, 246, 0.55) 92%
+  );
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.75),
+    0 0 70px rgba(167, 139, 250, 0.4),
+    0 0 130px rgba(139, 92, 246, 0.28);
+}
+.sl-window-rankup .sl-window-title {
+  font-size: 1.35rem;
+  letter-spacing: 0.3em;
+}
+.sl-rankup-hero {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.sl-rankup-hero .from {
+  font-size: 3.4rem;
+  color: rgba(216, 180, 254, 0.55);
+}
+.sl-rankup-hero .arrow {
+  font-size: 2.2rem;
+  color: #c4b5fd;
+}
+.sl-rankup-hero .to {
+  font-size: 6rem;
+  color: #f5f0ff;
+  text-shadow:
+    0 0 8px rgba(216, 180, 254, 0.95),
+    0 0 26px rgba(167, 139, 250, 0.75),
+    0 0 60px rgba(139, 92, 246, 0.6);
+}
+@media (min-width: 640px) {
+  .sl-rankup-hero .from {
+    font-size: 4.4rem;
+  }
+  .sl-rankup-hero .to {
+    font-size: 8rem;
+  }
+}
+/* After a level-up is accepted, the changed stat numbers pulse so the
+   player sees exactly where the growth landed. */
+.sl-stats-pulse .sl-stat-value {
+  animation: sl-stat-pulse 0.85s ease-in-out 2;
+}
+@keyframes sl-stat-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    text-shadow: none;
+  }
+  50% {
+    transform: scale(1.22);
+    color: #ffffff;
+    text-shadow:
+      0 0 8px rgba(160, 224, 255, 0.95),
+      0 0 22px rgba(76, 201, 255, 0.8);
+  }
+}
+
+/* Small phones: every tile keeps the same layout, but the row is too
+   narrow for orb + label column + value + button side by side — so the
+   label wrapper dissolves (display: contents) and the secondary label
+   wraps to its own full-width line under the row, identically on all
+   five tiles. Nothing is hidden and nothing can collide. */
+@media (max-width: 479px) {
+  .sl-stat-tile {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    row-gap: 0.2rem;
+    padding: 0.65rem 0.6rem;
+  }
+  .sl-stat-labels {
+    display: contents;
+  }
+  .sl-stat-full {
+    order: 5;
+    flex-basis: 100%;
+    font-size: 0.56rem;
+    letter-spacing: 0.04em;
+  }
+  .sl-stat-abbr {
+    font-size: 0.85rem;
+  }
+  .sl-icon-orb {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+  }
+  .sl-icon-orb svg {
+    width: 14px;
+    height: 14px;
+  }
+  .sl-stat-value {
+    font-size: 1.2rem;
+  }
+  .sl-plus-btn {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Mobile hit areas: every control offers at least a 44px target. The
+   stat "+" keeps its compact face but grows an invisible 44px halo. */
+@media (max-width: 639px) {
+  .sl-btn {
+    min-height: 44px;
+  }
+  .sl-btn.icon {
+    width: 44px;
+    height: 44px;
+  }
+  .sl-round-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .sl-claim {
+    height: 44px;
+  }
+  .sl-dismiss {
+    width: 44px;
+    height: 44px;
+  }
+  .sl-plus-btn {
+    width: 30px;
+    height: 30px;
+  }
+  .sl-plus-btn::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-modal,
+  .sl-window,
+  .sl-blink,
+  .sl-aura,
+  .sl-particles span,
+  .sl-stats-pulse .sl-stat-value,
+  .sl-claim::after,
+  .sl-claim:not(:disabled),
+  .sl-points-pill.live,
+  .sl-points-pill.live .sl-plus-lit,
+  .sl-check-badge {
+    animation: none;
+  }
+  .sl-bar-fill {
+    transition: none;
+  }
+}
+
+/* --- Records: streak + quest calendar ------------------------------------------------- */
+.sl-records-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+.sl-record-cell {
+  border: 1px solid rgba(143, 211, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(10, 22, 40, 0.45);
+  padding: 0.7rem 0.8rem;
+}
+.sl-record-value {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--sl-ice-bright);
+}
+.sl-record-unit {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #8fb8d8;
+}
+.sl-record-flame {
+  width: 20px;
+  height: 20px;
+  color: #ffb454;
+  filter: drop-shadow(0 0 6px rgba(255, 160, 60, 0.55));
+}
+.sl-cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+.sl-cal-day {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  border: 1px solid rgba(143, 211, 255, 0.1);
+  background: rgba(143, 211, 255, 0.04);
+  color: #06283d;
+}
+.sl-cal-day.claimed {
+  border-color: rgba(76, 201, 255, 0.65);
+  background: linear-gradient(150deg, #4cc9ff, #17709e);
+  box-shadow: 0 0 8px rgba(76, 201, 255, 0.35);
+}
+.sl-cal-day.missed {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(220, 38, 38, 0.13);
+}
+/* A missed day whose record was restored by a recovery quest: amber,
+   distinct from both a clean clear and an open miss. */
+.sl-cal-day.recovered {
+  border-color: rgba(245, 158, 11, 0.65);
+  background: linear-gradient(150deg, rgba(245, 158, 11, 0.85), rgba(180, 110, 10, 0.85));
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.35);
+  color: #2b1702;
+}
+.sl-cal-day.today {
+  outline: 1.5px solid rgba(234, 249, 255, 0.75);
+  outline-offset: 1px;
+}
+.sl-cal-day.legend {
+  width: 13px;
+  height: 13px;
+  aspect-ratio: auto;
+  flex: none;
+}
+
+/* --- XP graph (Records) ------------------------------------------------------------------- */
+.sl-xp-graph {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 84px;
+}
+.sl-xp-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  height: 100%;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.sl-xp-bar {
+  width: 100%;
+  min-height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, #63d4ff, #17709e);
+  box-shadow: 0 0 8px rgba(76, 201, 255, 0.3);
+}
+.sl-xp-bar.zero {
+  background: rgba(143, 211, 255, 0.14);
+  box-shadow: none;
+}
+.sl-xp-day {
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #8fb8d8;
+  white-space: nowrap;
+}
+
+/* --- AI Training ------------------------------------------------------------------------ */
+.sl-exercise-card {
+  text-align: left;
+  border: 1px solid rgba(143, 211, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(10, 22, 40, 0.45);
+  padding: 0.9rem 1rem 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.sl-exercise-card:hover {
+  border-color: rgba(143, 211, 255, 0.45);
+}
+.sl-exercise-card.selected {
+  border-color: rgba(76, 201, 255, 0.8);
+  background: rgba(23, 112, 158, 0.22);
+  box-shadow: 0 0 18px rgba(76, 201, 255, 0.22), inset 0 0 22px rgba(76, 201, 255, 0.06);
+}
+.sl-train-stage {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(143, 211, 255, 0.3);
+  background: #020608;
+  aspect-ratio: 4 / 3;
+  box-shadow: 0 0 26px rgba(76, 201, 255, 0.12);
+}
+@media (min-width: 640px) {
+  .sl-train-stage {
+    aspect-ratio: 16 / 9;
+  }
+}
+.sl-train-mirror {
+  position: absolute;
+  inset: 0;
+  transform: scaleX(-1);
+}
+.sl-train-stage video,
+.sl-train-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sl-phase-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  padding: 0.32rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(143, 211, 255, 0.55);
+  background: rgba(4, 18, 32, 0.72);
+  color: var(--sl-ice-bright);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.sl-phase-pill.low {
+  border-color: rgba(53, 199, 155, 0.7);
+  color: #7df0cd;
+  box-shadow: 0 0 14px rgba(53, 199, 155, 0.35);
+}
+.sl-train-count {
+  font-size: 4rem;
+  line-height: 0.95;
+  margin-top: 0.25rem;
+}
+.sl-train-src {
+  flex: none;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid rgba(143, 211, 255, 0.35);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #a9cdec;
+}
+
+/* --- Reward economy: gold, shop, inventory, ledger, boss ------------------------------- */
+/* Gold is the one warm accent in the System — reserved strictly for gold
+   balances, prices and shop elements so it always reads as currency. */
+.sl-gold {
+  --gold: #ffd166;
+  --gold-bright: #ffe9b0;
+  --gold-deep: #b97e10;
+}
+.sl-gold-text {
+  color: var(--gold, #ffd166);
+}
+.sl-gold-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 209, 102, 0.45);
+  background: rgba(255, 209, 102, 0.08);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #ffe9b0;
+}
+.sl-gold-chip svg {
+  width: 15px;
+  height: 15px;
+  color: #ffd166;
+}
+.sl-gold-chip .sl-num {
+  color: #ffffff;
+  font-weight: 800;
+  text-shadow: 0 0 12px rgba(255, 209, 102, 0.45);
+}
+.sl-btn.gold {
+  border-color: rgba(255, 209, 102, 0.55);
+  color: #ffe9b0;
+  background: linear-gradient(180deg, rgba(255, 209, 102, 0.16), rgba(185, 126, 16, 0.12));
+}
+.sl-btn.gold:hover:not(:disabled) {
+  box-shadow: 0 0 16px rgba(255, 209, 102, 0.35);
+}
+.sl-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #ffe9b0;
+  font-weight: 800;
+}
+.sl-price svg {
+  width: 13px;
+  height: 13px;
+  color: #ffd166;
+}
+.sl-shop-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+@media (min-width: 640px) {
+  .sl-shop-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.sl-shop-card {
+  border: 1px solid rgba(255, 209, 102, 0.25);
+  background: rgba(255, 209, 102, 0.04);
+  border-radius: 6px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.sl-item-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  border: 1px solid var(--sl-stroke);
+  background: var(--sl-glass);
+  border-radius: 6px;
+  padding: 0.7rem 0.85rem;
+}
+/* The name/description block gets first claim on the row's width; the
+   count and action wrap beneath it on narrow screens instead of
+   squeezing names into ellipses. */
+.sl-item-row > div {
+  flex: 1 1 150px;
+}
+.sl-item-icon {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px solid rgba(143, 211, 255, 0.35);
+  background: rgba(76, 201, 255, 0.08);
+  color: #8fd0f2;
+}
+.sl-item-icon svg {
+  width: 19px;
+  height: 19px;
+}
+.sl-item-icon.gold {
+  border-color: rgba(255, 209, 102, 0.4);
+  background: rgba(255, 209, 102, 0.07);
+  color: #ffd166;
+}
+.sl-item-count {
+  flex: none;
+  min-width: 30px;
+  text-align: center;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid rgba(143, 211, 255, 0.35);
+  font-weight: 800;
+  color: #eaf9ff;
+}
+.sl-input {
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid var(--sl-stroke);
+  background: rgba(4, 18, 34, 0.55);
+  color: #eaf9ff;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  outline: none;
+}
+.sl-input:focus {
+  border-color: rgba(76, 201, 255, 0.65);
+  box-shadow: 0 0 10px rgba(76, 201, 255, 0.25);
+}
+.sl-input::placeholder {
+  color: rgba(143, 176, 216, 0.6);
+}
+/* Ledger rows: monospace, quiet — a record, not a reward. */
+.sl-ledger-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.42rem 0.2rem;
+  border-bottom: 1px solid rgba(143, 211, 255, 0.08);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: #a9cdec;
+}
+.sl-ledger-row .sl-ledger-type {
+  flex: none;
+  width: 92px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #dcefff;
+}
+.sl-ledger-row .sl-ledger-amt {
+  flex: none;
+  margin-left: auto;
+  font-weight: 700;
+  color: #eaf9ff;
+}
+.sl-ledger-row .sl-ledger-amt.gold {
+  color: #ffd166;
+}
+.sl-integrity-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #7df0cd;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+}
+.sl-integrity-ok svg {
+  width: 14px;
+  height: 14px;
+}
+/* Calendar: a shielded day kept the record under protection — teal;
+   a rested day is a deliberate pause — violet-grey. */
+.sl-cal-day.shielded {
+  border-color: rgba(45, 212, 191, 0.65);
+  background: linear-gradient(150deg, rgba(45, 212, 191, 0.8), rgba(13, 110, 100, 0.85));
+  box-shadow: 0 0 8px rgba(45, 212, 191, 0.3);
+  color: #03211c;
+}
+.sl-cal-day.rested {
+  border-color: rgba(167, 139, 250, 0.55);
+  background: linear-gradient(150deg, rgba(139, 92, 246, 0.55), rgba(76, 29, 149, 0.6));
+  color: #efe9ff;
+}
+/* Titles list on the Status window. */
+.sl-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.2rem;
+  border-bottom: 1px solid rgba(143, 211, 255, 0.08);
+}
+.sl-title-row:last-child {
+  border-bottom: none;
+}
+.sl-title-row .sl-title-name {
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #eaf9ff;
+}
+.sl-title-row.locked .sl-title-name {
+  color: rgba(169, 205, 236, 0.55);
+}
+.sl-title-row svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: #8fd0f2;
+}
+.sl-title-row.earned svg {
+  color: #ffd166;
+}
+/* Shadow collection in Records. */
+.sl-shadow-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  background: linear-gradient(150deg, rgba(88, 28, 180, 0.18), rgba(20, 8, 44, 0.25));
+  border-radius: 6px;
+  padding: 0.7rem 0.85rem;
+}
+.sl-shadow-card svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: #c4b5fd;
+}
+/* Loot modal: the flare turns gold — a drop is treasure, not a level. */
+.sl-modal.loot .sl-flare {
+  background: radial-gradient(circle at 50% 0%, rgba(255, 209, 102, 0.28), transparent 65%);
+}
+.sl-loot-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1.1rem auto 0.4rem;
+}
+.sl-loot-item .sl-item-icon {
+  width: 58px;
+  height: 58px;
+  border-color: rgba(255, 209, 102, 0.55);
+  background: rgba(255, 209, 102, 0.09);
+  color: #ffd166;
+}
+.sl-loot-item .sl-item-icon svg {
+  width: 28px;
+  height: 28px;
+}
